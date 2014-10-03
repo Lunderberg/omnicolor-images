@@ -14,9 +14,11 @@ struct Point{
 	}
 };
 
+enum class ColorChoice {Nearest, Ordered, Sequential};
+
 class GrowthImage{
 public:
-	GrowthImage(int width, int height, int colors);
+	GrowthImage(int width, int height, int colors, ColorChoice color_choice=ColorChoice::Nearest);
 
 	void GenerateUniformPalette(int colors);
 
@@ -27,6 +29,11 @@ public:
 	Point ChooseLocation();
 	boost::gil::rgb8_pixel_t ChooseColor(Point loc);
 
+	boost::gil::rgb8_pixel_t ChooseNearestColor(Point loc);
+	boost::gil::rgb8_pixel_t ChooseOrderedColor(Point loc);
+	boost::gil::rgb8_pixel_t ChooseSequentialColor(Point loc);
+
+
 	void Save(const char* filepath);
 private:
 	boost::gil::rgb8_image_t image;
@@ -35,6 +42,7 @@ private:
 	std::vector<std::vector<bool> > filled;
 	Point previous_loc;
 	std::vector<Point> frontier;
+	ColorChoice color_choice;
 };
 
 #endif /* _GROWTHIMAGE_H_ */

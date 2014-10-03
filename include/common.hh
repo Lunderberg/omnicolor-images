@@ -6,20 +6,6 @@
 #include <random>
 #include <ctime>
 
-#include <boost/gil/gil_all.hpp>
-
-std::vector<boost::gil::rgb8_pixel_t> allowed_colors_15bit();
-std::vector<boost::gil::rgb8_pixel_t> allowed_colors(int colors);
-
-void ordered_pixels(boost::gil::rgb8_image_t::view_t img,
-										std::vector<boost::gil::rgb8_pixel_t> palette);
-
-void random_growth(boost::gil::rgb8_image_t::view_t img,
-									 std::vector<boost::gil::rgb8_pixel_t> palette);
-
-void closest_color(boost::gil::rgb8_image_t::view_t img,
-									 std::vector<boost::gil::rgb8_pixel_t> palette);
-
 // a is inclusive, b is exclusive.
 // Range is [a,b-1]
 long randint(long a, long b);

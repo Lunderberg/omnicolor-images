@@ -2,11 +2,16 @@
 
 #include "common.hh"
 
+#include <iostream>
+using std::cout;
+using std::endl;
+
 #include <cassert>
 #include <cfloat>
 
-GrowthImage::GrowthImage(int width, int height, int colors)
-	: image(width,height), view(boost::gil::view(image)), previous_loc(-1,-1){
+GrowthImage::GrowthImage(int width, int height, int colors, ColorChoice color_choice)
+	: image(width,height), view(boost::gil::view(image)), previous_loc(-1,-1),
+		color_choice(color_choice){
 	Reset();
 	GenerateUniformPalette(colors);
 }
@@ -75,8 +80,15 @@ void GrowthImage::Iterate(){
 }
 
 void GrowthImage::IterateUntilDone(){
+	int body_size = 0;
 	while(frontier.size()){
+		if(body_size%1000==0){
+			cout << "Body: " << body_size << "\tFrontier: " << frontier.size()
+					 << "\tUnexplored: " << image.height()*image.width() - body_size - frontier.size()
+					 << endl;
+		}
 		Iterate();
+		body_size++;
 	}
 }
 
@@ -85,6 +97,27 @@ Point GrowthImage::ChooseLocation(){
 }
 
 boost::gil::rgb8_pixel_t GrowthImage::ChooseColor(Point loc){
+	switch(color_choice){
+	case ColorChoice::Nearest:
+		return ChooseNearestColor(loc);
+	case ColorChoice::Ordered:
+		return ChooseOrderedColor(loc);
+	case ColorChoice::Sequential:
+		return ChooseSequentialColor(loc);
+	}
+}
+
+boost::gil::rgb8_pixel_t GrowthImage::ChooseOrderedColor(Point loc){
+	return palette[loc.j*image.width() + loc.i];
+}
+
+boost::gil::rgb8_pixel_t GrowthImage::ChooseSequentialColor(Point loc){
+	auto output = palette.back();
+	palette.pop_back();
+	return output;
+}
+
+boost::gil::rgb8_pixel_t GrowthImage::ChooseNearestColor(Point loc){
 	// Find the average surrounding color.
 	double ave_r = 0;
 	double ave_g = 0;
