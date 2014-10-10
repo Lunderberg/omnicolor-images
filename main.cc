@@ -1,55 +1,105 @@
 #include <iostream>
 using std::cout;
+using std::cerr;
 using std::flush;
 using std::endl;
 #include <cstdio>
-#include <cstdlib>
+#include <string>
+#include <sstream>
 
 #include <boost/gil/gil_all.hpp>
+#include <boost/program_options.hpp>
 
 #include "GrowthImage.hh"
 
-void MakeVideo(){
-	int width = 1920;
-	int height = 1080;
-	int iterations_per_pic = 1000;
-
-	system("rm -rf temp && mkdir temp");
-
-	GrowthImage g(width,height,width*height,ColorChoice::Nearest,5);
+void MakeVideo(GrowthImage& g, std::string output, int iterations_per_frame){
+	int err;
 	int picnum = 0;
+
+	err = system("rm -rf temp && mkdir temp");
+
+	int framenum = 0;
 	for(int i=0; g.Iterate(); i++){
-		if(i%iterations_per_pic==0){
-			char buf[100];
-			snprintf(buf,sizeof(buf),"temp/growth_%d.png",picnum++);
-			g.Save(buf);
-			cout << "\rIteration: (" << i << "/" << width*height << ")" << flush;
+		if(i%iterations_per_frame==0){
+			std::stringstream ss;
+			ss << "temp/growth_" << picnum++ << ".png";
+			g.Save(ss.str());
+			cout << "\rIteration: (" << i << "/" << g.GetWidth()*g.GetHeight() << ")" << flush;
 		}
 	}
 	cout << endl;
 
 	for(int i=0; i<24; i++){
-		char buf[100];
-		snprintf(buf,sizeof(buf),"temp/growth_%d.png",picnum++);
-		g.Save(buf);
+		std::stringstream ss;
+		ss << "temp/growth_" << picnum++ << ".png";
+		g.Save(ss.str());
 	}
 
-	char buf[250];
-	snprintf(buf,sizeof(buf),
-					 "avconv -f image2 -framerate 12 -i \"temp/growth_%%d.png\" -b 1500k -s %dx%d video.avi",
-					 width,height);
-	system(buf);
-	system("rm -rf temp");
+	std::stringstream ss;
+	ss << "avconv -f image2 -framerate 12 -i \"temp/growth_%d.png\" -b 1500k -s "
+		 << g.GetWidth() << "x" << g.GetHeight()
+		 << " " << output;
+	std::string str = ss.str();
+	err = system(str.c_str());
+	err = system("rm -rf temp");
 }
 
-void MakeImage(){
-	int width = 1920;
-	int height = 1080;
-	GrowthImage g(width,height,width*height,ColorChoice::Nearest);
+void MakeImage(GrowthImage& g, std::string output){
 	g.IterateUntilDone();
-	g.Save("image.png");
+	g.Save(output);
 }
 
-int main(){
-	MakeImage();
+int main(int argc, char** argv){
+	int height, width;
+	int iterations_per_frame;
+	ColorChoice color_choice;
+	LocationChoice location_choice;
+	int seed;
+	std::string output;
+
+	namespace po = boost::program_options;
+	po::options_description desc("Options");
+	desc.add_options()
+		("help","Print help message")
+		("width,w", po::value(&width)->default_value(256), "Width of the output image")
+		("height,h", po::value(&height)->default_value(128), "Height of the output image")
+		("video,v", "Render as a video instead of a still image")
+		("iter-per-frame", po::value(&iterations_per_frame)->default_value(1000),
+		 "Iterations between each frame")
+		("color,c", po::value(&color_choice)->default_value(ColorChoice::Nearest),
+		 "Algorithm for selecting color")
+		("location,l", po::value(&location_choice)->default_value(LocationChoice::Random),
+		 "Algorithm for selecting the next pixel to fill")
+		("seed,s", po::value(&seed)->default_value(0),
+		 "Random seed (0 = seed with current time)")
+		("output,o", po::value(&output)->required(), "Output filename")
+		;
+
+
+	po::variables_map vm;
+	try{
+		po::store(po::parse_command_line(argc,argv,desc),vm);
+
+		if(vm.count("help")){
+			cout << "Growth Image Generator" << endl
+					 << desc << endl;
+			return 0;
+		}
+
+		po::notify(vm);
+	} catch (po::error& e){
+		cerr << "ERROR: " << e.what() << endl
+				 << desc << endl;
+		return 1;
+	}
+
+	GrowthImage g(width,height,seed);
+	g.SetColorChoice(color_choice);
+	g.SetLocationChoice(location_choice);
+
+	if(vm.count("video")){
+		MakeVideo(g, output, iterations_per_frame);
+	} else {
+		MakeImage(g, output);
+	}
 }

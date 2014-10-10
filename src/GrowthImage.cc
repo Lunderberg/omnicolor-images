@@ -11,12 +11,12 @@ using std::endl;
 #include <algorithm>
 #include <ctime>
 
-GrowthImage::GrowthImage(int width, int height, int colors, ColorChoice color_choice, int seed)
+GrowthImage::GrowthImage(int width, int height, int seed)
 	: image(width,height), view(boost::gil::view(image)), previous_loc(-1,-1),
-		color_choice(color_choice), iterations_since_purge(0){
-	rng = std::mt19937((seed>0) ? seed : std::time(0));
+		color_choice(ColorChoice::Nearest), iterations_since_purge(0){
+	rng = std::mt19937(seed ? seed : time(0));
 	Reset();
-	GenerateUniformPalette(colors);
+	GenerateUniformPalette(width*height);
 }
 
 void GrowthImage::GenerateUniformPalette(int colors){
@@ -41,6 +41,26 @@ void GrowthImage::GenerateUniformPalette(int colors){
 
 	std::shuffle(palette.begin(),palette.end(),rng);
 	std::stable_sort(palette.begin(),palette.end());
+}
+
+void GrowthImage::Seed(int seed){
+	rng = std::mt19937(seed);
+}
+
+int GrowthImage::GetWidth(){
+	return image.width();
+}
+
+int GrowthImage::GetHeight(){
+	return image.height();
+}
+
+void GrowthImage::SetColorChoice(ColorChoice c){
+	color_choice = c;
+}
+
+void GrowthImage::SetLocationChoice(LocationChoice c){
+	location_choice = c;
 }
 
 void GrowthImage::Reset(){
@@ -103,7 +123,12 @@ void GrowthImage::IterateUntilDone(){
 }
 
 Point GrowthImage::ChooseLocation(){
-	return ChooseSnakingLocation();
+	switch(location_choice){
+	case LocationChoice::Random:
+		return ChooseFrontierLocation();
+	case LocationChoice::Snaking:
+		return ChooseSnakingLocation();
+	}
 }
 
 Point GrowthImage::ChooseFrontierLocation(){
@@ -111,28 +136,23 @@ Point GrowthImage::ChooseFrontierLocation(){
 }
 
 Point GrowthImage::ChooseSnakingLocation(){
-	Point new_loc;
-	switch(randint(rng,4)){
-	case 0:
-		new_loc = Point(previous_loc.i-1, previous_loc.j);
-		break;
-	case 1:
-		new_loc = Point(previous_loc.i+1, previous_loc.j);
-		break;
-	case 2:
-		new_loc = Point(previous_loc.i, previous_loc.j-1);
-		break;
-	case 3:
-		new_loc = Point(previous_loc.i, previous_loc.j+1);
-		break;
+	std::vector<Point> free_locs;
+	for(int i=0; i<4; i++){
+		int di = (i%2)*2 - 1;
+		int dj = (i/2)*2 - 1;
+		Point new_loc = Point(previous_loc.i+di,previous_loc.j+dj);
+		if(new_loc.i>=0 && new_loc.i<image.width() &&
+			 new_loc.j>=0 && new_loc.j<image.height() &&
+			 !filled[new_loc.i][new_loc.j]){
+			free_locs.push_back(new_loc);
+		}
 	}
-	if(new_loc.i>=0 && new_loc.i<image.width() &&
-		 new_loc.j>=0 && new_loc.j<image.height() &&
-		 !filled[new_loc.i][new_loc.j]){
+	if(free_locs.size()){
+		Point next_loc = free_locs[randint(rng,free_locs.size())];
 		frontier.erase(std::remove_if(frontier.begin(),frontier.end(),
-																	[&new_loc](const Point& o){return o==new_loc;}),
+																	[&next_loc](const Point& o){return o==next_loc;}),
 									 frontier.end());
-		return new_loc;
+		return next_loc;
 	} else {
 		return poprandom(rng,frontier);
 	}

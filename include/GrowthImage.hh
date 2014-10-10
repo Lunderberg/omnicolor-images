@@ -4,8 +4,11 @@
 #include <vector>
 #include <list>
 #include <cmath>
+#include <string>
 
 #include <boost/gil/gil_all.hpp>
+
+#include "SmartEnum.hh"
 
 struct Point{
 	Point(int i=0, int j=0) : i(i), j(j) {}
@@ -28,20 +31,31 @@ struct Color{
 	bool operator<(const Color& other) const { return magnitude<other.magnitude; }
 };
 
-enum class ColorChoice {Nearest, Ordered, Sequential};
+SmartEnum(ColorChoice, Nearest, Ordered, Sequential);
+SmartEnum(LocationChoice, Random, Snaking);
 
 class GrowthImage{
 public:
-	GrowthImage(int width, int height, int colors, ColorChoice color_choice=ColorChoice::Nearest,
-							int seed=0);
+	GrowthImage(int width, int height, int seed);
 
 	void GenerateUniformPalette(int colors);
+	void Seed(int seed);
+
+	void SetColorChoice(ColorChoice c);
+	void SetLocationChoice(LocationChoice c);
 
 	void Reset();
-	void FirstIteration();
 	bool Iterate();
 	void IterateUntilDone();
 
+	void Save(const char* filepath);
+	void Save(const std::string& filepath);
+
+	int GetWidth();
+	int GetHeight();
+
+private:
+	void FirstIteration();
 
 	Point ChooseLocation();
 	Point ChooseFrontierLocation();
@@ -53,19 +67,20 @@ public:
 	boost::gil::rgb8_pixel_t PopClosestColor(double r, double g, double b);
 	boost::gil::rgb8_pixel_t ChooseOrderedColor(Point loc);
 	boost::gil::rgb8_pixel_t ChooseSequentialColor(Point loc);
-
 	void PurgeUsedColors();
 
-
-	void Save(const char* filepath);
 private:
+	ColorChoice color_choice;
+	LocationChoice location_choice;
+
 	boost::gil::rgb8_image_t image;
 	boost::gil::rgb8_image_t::view_t view;
+
 	std::vector<Color> palette;
 	std::vector<std::vector<bool> > filled;
-	Point previous_loc;
 	std::vector<Point> frontier;
-	ColorChoice color_choice;
+
+	Point previous_loc;
 
 	int iterations_since_purge;
 	std::mt19937 rng;

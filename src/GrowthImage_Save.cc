@@ -6,3 +6,7 @@
 void GrowthImage::Save(const char* filepath){
 	boost::gil::png_write_view(filepath,boost::gil::const_view(image));
 }
+
+void GrowthImage::Save(const std::string& filepath){
+	Save(filepath.c_str());
+}
