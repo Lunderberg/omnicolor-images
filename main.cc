@@ -36,12 +36,13 @@ void MakeVideo(GrowthImage& g, std::string output, int iterations_per_frame){
 	}
 
 	std::stringstream ss;
-	ss << "avconv -f image2 -framerate 12 -i \"temp/growth_%d.png\" -b 1500k -s "
+	ss << "ffmpeg -f image2 -framerate 12 -i \"temp/growth_%d.png\" -s "
 		 << g.GetWidth() << "x" << g.GetHeight()
+		 << " -vcodec h264 -cbr 18"
 		 << " " << output;
 	std::string str = ss.str();
 	err = system(str.c_str());
-	err = system("rm -rf temp");
+	//err = system("rm -rf temp");
 }
 
 void MakeImage(GrowthImage& g, std::string output){
@@ -56,6 +57,7 @@ int main(int argc, char** argv){
 	LocationChoice location_choice;
 	int seed;
 	std::string output;
+	int preferred_location_iterations;
 
 	namespace po = boost::program_options;
 	po::options_description desc("Options");
@@ -73,6 +75,8 @@ int main(int argc, char** argv){
 		("seed,s", po::value(&seed)->default_value(0),
 		 "Random seed (0 = seed with current time)")
 		("output,o", po::value(&output)->required(), "Output filename")
+		("loc-iter", po::value(&preferred_location_iterations)->default_value(10),
+		 "How often to repeat to find a close value")
 		;
 
 
@@ -96,6 +100,7 @@ int main(int argc, char** argv){
 	GrowthImage g(width,height,seed);
 	g.SetColorChoice(color_choice);
 	g.SetLocationChoice(location_choice);
+	g.SetPreferredLocationIterations(preferred_location_iterations);
 
 	if(vm.count("video")){
 		MakeVideo(g, output, iterations_per_frame);

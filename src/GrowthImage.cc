@@ -1,7 +1,5 @@
 #include "GrowthImage.hh"
 
-#include "common.hh"
-
 #include <iostream>
 using std::cout;
 using std::endl;
@@ -11,9 +9,12 @@ using std::endl;
 #include <algorithm>
 #include <ctime>
 
+#include "common.hh"
+
 GrowthImage::GrowthImage(int width, int height, int seed)
 	: image(width,height), view(boost::gil::view(image)), previous_loc(-1,-1),
-		color_choice(ColorChoice::Nearest), iterations_since_purge(0){
+		color_choice(ColorChoice::Nearest), iterations_since_purge(0),
+		preferred_location_iterations(10){
 	rng = std::mt19937(seed ? seed : time(0));
 	Reset();
 	GenerateUniformPalette(width*height);
@@ -63,6 +64,10 @@ void GrowthImage::SetLocationChoice(LocationChoice c){
 	location_choice = c;
 }
 
+void GrowthImage::SetPreferredLocationIterations(int n){
+	preferred_location_iterations = n;
+}
+
 void GrowthImage::Reset(){
 	filled.clear();
 	filled.resize(image.width());
@@ -97,6 +102,7 @@ bool GrowthImage::Iterate(){
 				 p.j>=0 && p.j<image.height() &&
 				 !is_in(frontier,p) &&
 				 !filled[p.i][p.j]){
+				p.preference = ChoosePreference(p,color);
 				frontier.push_back(p);
 			}
 		}
@@ -128,11 +134,38 @@ Point GrowthImage::ChooseLocation(){
 		return ChooseFrontierLocation();
 	case LocationChoice::Snaking:
 		return ChooseSnakingLocation();
+	case LocationChoice::Preferred:
+		return ChoosePreferredLocation(preferred_location_iterations);
 	}
 }
 
 Point GrowthImage::ChooseFrontierLocation(){
 	return poprandom(rng,frontier);
+}
+
+Point GrowthImage::ChoosePreferredLocation(int n_check){
+	assert(n_check>0);
+	int best_index;
+	double best_preference = -DBL_MAX;
+	for(int i=0; i<n_check; i++){
+		int index = randint(rng,frontier.size());
+		if(frontier[index].preference > best_preference){
+			best_preference = frontier[index].preference;
+			best_index = index;
+		}
+	}
+	return popanywhere(frontier,best_index);
+}
+
+double GrowthImage::ChoosePreference(Point p, boost::gil::rgb8_pixel_t){
+	if(goal_loc.i == -1 || filled[goal_loc.i][goal_loc.j]){
+		goal_loc = {randint(rng,image.width()),
+								randint(rng,image.height())};
+	}
+
+	double di = p.i - goal_loc.i;
+	double dj = p.j - goal_loc.j;
+	return -(di*di + dj*dj);
 }
 
 Point GrowthImage::ChooseSnakingLocation(){

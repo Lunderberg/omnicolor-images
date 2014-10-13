@@ -11,8 +11,9 @@
 #include "SmartEnum.hh"
 
 struct Point{
-	Point(int i=0, int j=0) : i(i), j(j) {}
+	Point(int i=-1, int j=-1) : i(i), j(j), preference(0) {}
 	int i,j;
+	double preference;
 
 	bool operator==(const Point& p) const {
 		return p.i==i && p.j==j;
@@ -32,7 +33,7 @@ struct Color{
 };
 
 SmartEnum(ColorChoice, Nearest, Ordered, Sequential);
-SmartEnum(LocationChoice, Random, Snaking);
+SmartEnum(LocationChoice, Random, Snaking, Preferred);
 
 class GrowthImage{
 public:
@@ -43,6 +44,7 @@ public:
 
 	void SetColorChoice(ColorChoice c);
 	void SetLocationChoice(LocationChoice c);
+	void SetPreferredLocationIterations(int n);
 
 	void Reset();
 	bool Iterate();
@@ -60,7 +62,9 @@ private:
 	Point ChooseLocation();
 	Point ChooseFrontierLocation();
 	Point ChooseSnakingLocation();
+	Point ChoosePreferredLocation(int n_check);
 
+	double ChoosePreference(Point p, boost::gil::rgb8_pixel_t color);
 
 	boost::gil::rgb8_pixel_t ChooseColor(Point loc);
 	boost::gil::rgb8_pixel_t ChooseNearestColor(Point loc);
@@ -81,6 +85,8 @@ private:
 	std::vector<Point> frontier;
 
 	Point previous_loc;
+	Point goal_loc;
+	int preferred_location_iterations;
 
 	int iterations_since_purge;
 	std::mt19937 rng;
