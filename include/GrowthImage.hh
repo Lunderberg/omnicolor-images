@@ -38,6 +38,7 @@ public:
 	void Reset();
 	bool Iterate();
 	void IterateUntilDone();
+	void ExtendFrontier(Point loc, Color color);
 
 	void Save(const char* filepath);
 	void Save(const std::string& filepath);

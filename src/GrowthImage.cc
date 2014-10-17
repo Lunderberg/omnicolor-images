@@ -75,7 +75,7 @@ bool GrowthImage::Iterate(){
 	return frontier.size();
 }
 
-void ExtendFrontier(Point loc, Color color){
+void GrowthImage::ExtendFrontier(Point loc, Color color){
 	filled[loc.i][loc.j] = true;
 	for(int di=-1; di<=1; di++){
 		for(int dj=-1; dj<=1; dj++){
