@@ -68,7 +68,14 @@ bool GrowthImage::Iterate(){
 	auto color = ChooseColor(loc);
 	view(loc.i,loc.j) = {color.r, color.g, color.b};
 
-	// Extend the frontier
+	ExtendFrontier(loc,color);
+
+	previous_loc = loc;
+
+	return frontier.size();
+}
+
+void ExtendFrontier(Point loc, Color color){
 	filled[loc.i][loc.j] = true;
 	for(int di=-1; di<=1; di++){
 		for(int dj=-1; dj<=1; dj++){
@@ -82,10 +89,6 @@ bool GrowthImage::Iterate(){
 			}
 		}
 	}
-
-	previous_loc = loc;
-
-	return frontier.size();
 }
 
 void GrowthImage::IterateUntilDone(){
