@@ -53,14 +53,17 @@ void GrowthImage::Reset(){
 		}
 	}
 
-	frontier.clear();
+	frontier_vector.clear();
+	frontier_set.clear();
 
 	FirstIteration();
 }
 
 void GrowthImage::FirstIteration(){
-	frontier.push_back({randint(rng,image.width()),
-				              randint(rng,image.height())});
+	Point start = {randint(rng,image.width()),
+								 randint(rng,image.height())};
+	frontier_vector.push_back(start);
+	frontier_set.insert(start);
 }
 
 bool GrowthImage::Iterate(){
@@ -72,7 +75,7 @@ bool GrowthImage::Iterate(){
 
 	previous_loc = loc;
 
-	return frontier.size();
+	return frontier_vector.size();
 }
 
 void GrowthImage::ExtendFrontier(Point loc, Color color){
@@ -82,10 +85,11 @@ void GrowthImage::ExtendFrontier(Point loc, Color color){
 			Point p(loc.i+di, loc.j+dj);
 			if(p.i>=0 && p.i<image.width() &&
 				 p.j>=0 && p.j<image.height() &&
-				 !is_in(frontier,p) &&
+				 !frontier_set.count(p) &&
 				 !filled[p.i][p.j]){
 				p.preference = ChoosePreference(p,color);
-				frontier.push_back(p);
+				frontier_vector.push_back(p);
+				frontier_set.insert(p);
 			}
 		}
 	}
@@ -93,11 +97,11 @@ void GrowthImage::ExtendFrontier(Point loc, Color color){
 
 void GrowthImage::IterateUntilDone(){
 	int body_size = 0;
-	while(frontier.size()){
-		if(body_size%1000==0){
+	while(frontier_vector.size()){
+		if(body_size%10000==0){
 			cout << "\r                                                   \r"
-					 << "Body: " << body_size << "\tFrontier: " << frontier.size()
-					 << "\tUnexplored: " << image.height()*image.width() - body_size - frontier.size()
+					 << "Body: " << body_size << "\tFrontier: " << frontier_vector.size()
+					 << "\tUnexplored: " << image.height()*image.width() - body_size - frontier_vector.size()
 					 << std::flush;
 		}
 		Iterate();
@@ -118,7 +122,9 @@ Point GrowthImage::ChooseLocation(){
 }
 
 Point GrowthImage::ChooseFrontierLocation(){
-	return poprandom(rng,frontier);
+	auto value = poprandom(rng,frontier_vector);
+	frontier_set.erase(value);
+	return value;
 }
 
 Point GrowthImage::ChoosePreferredLocation(int n_check){
@@ -126,13 +132,16 @@ Point GrowthImage::ChoosePreferredLocation(int n_check){
 	int best_index;
 	double best_preference = -DBL_MAX;
 	for(int i=0; i<n_check; i++){
-		int index = randint(rng,frontier.size());
-		if(frontier[index].preference > best_preference){
-			best_preference = frontier[index].preference;
+		int index = randint(rng,frontier_vector.size());
+		if(frontier_vector[index].preference > best_preference){
+			best_preference = frontier_vector[index].preference;
 			best_index = index;
 		}
 	}
-	return popanywhere(frontier,best_index);
+
+	auto value = popanywhere(frontier_vector,best_index);
+	frontier_set.erase(value);
+	return value;
 }
 
 double GrowthImage::ChoosePreference(Point p, Color){
@@ -160,12 +169,15 @@ Point GrowthImage::ChooseSnakingLocation(){
 	}
 	if(free_locs.size()){
 		Point next_loc = free_locs[randint(rng,free_locs.size())];
-		frontier.erase(std::remove_if(frontier.begin(),frontier.end(),
-																	[&next_loc](const Point& o){return o==next_loc;}),
-									 frontier.end());
+		frontier_vector.erase(std::remove_if(frontier_vector.begin(),frontier_vector.end(),
+																				 [&next_loc](const Point& o){return o==next_loc;}),
+													frontier_vector.end());
+		frontier_set.erase(next_loc);
 		return next_loc;
 	} else {
-		return poprandom(rng,frontier);
+		auto value = poprandom(rng,frontier_vector);
+		frontier_set.erase(value);
+		return value;
 	}
 }
 

@@ -5,6 +5,8 @@
 #include <list>
 #include <cmath>
 #include <string>
+#include <unordered_set>
+#include <functional>
 
 #include <boost/gil/gil_all.hpp>
 
@@ -20,6 +22,15 @@ struct Point{
 		return p.i==i && p.j==j;
 	}
 };
+
+namespace std{
+	template<>
+	struct hash<Point>{
+		size_t operator()(const Point& p) const{
+			return 1000*p.i + p.j;
+		}
+	};
+}
 
 SmartEnum(ColorChoice, Nearest, Sequential);
 SmartEnum(LocationChoice, Random, Snaking, Preferred);
@@ -71,7 +82,8 @@ private:
 	boost::gil::rgb8_image_t::view_t view;
 
 	std::vector<std::vector<bool> > filled;
-	std::vector<Point> frontier;
+	std::unordered_set<Point> frontier_set;
+	std::vector<Point> frontier_vector;
 
 	Point previous_loc;
 	Point goal_loc;

@@ -4,6 +4,7 @@
 #include <vector>
 #include <functional>
 #include <random>
+#include <memory>
 
 #include "KDTree.hh"
 
@@ -24,7 +25,7 @@ struct Color{
 		}
 		assert(false);
 	}
-};
+};;
 
 class UniquePalette{
 public:
@@ -35,7 +36,7 @@ public:
 
 	void GenerateUniformPalette(int n_colors);
 private:
-	std::shared_ptr<KDTree<Color> > colors;
+	std::unique_ptr<KDTree<Color> > colors;
 };
 
 #endif /* _UNIQUEPALETTE_H_ */

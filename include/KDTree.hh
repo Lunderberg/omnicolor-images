@@ -23,9 +23,9 @@ double distance(T a, T b){
 }
 
 template<typename T>
-class KDTree{
+class NodeBase{
 public:
-	KDTree() : parent(nullptr) {}
+	NodeBase() : parent(nullptr) {}
 
 	// Gets the number of leaves that are direct or indirect children.
 	virtual int GetNumLeaves() = 0;
@@ -38,15 +38,15 @@ public:
 
 private:
 	// Returns a (distance,leafnode) pair of the closest value.
-	virtual std::pair<double,std::shared_ptr<LeafNode<T> > > GetClosestNode(T query) = 0;
-	void SetParent(KDTree<T>* par){parent = par;}
+	virtual std::pair<double,LeafNode<T>*> GetClosestNode(T query) = 0;
+	void SetParent(NodeBase<T>* par){parent = par;}
 	friend class InternalNode<T>;
 
-	KDTree<T>* parent;
+	NodeBase<T>* parent;
 };
 
 template<typename T>
-class LeafNode : public KDTree<T>, public std::enable_shared_from_this<LeafNode<T> >{
+class LeafNode : public NodeBase<T> {
 public:
 	LeafNode(T value, int repeats=1) : value(value), times_used(0), repeats(repeats) {}
 
@@ -62,8 +62,8 @@ public:
 	}
 
 private:
-	virtual std::pair<double, std::shared_ptr<LeafNode<T> > > GetClosestNode(T query){
-		return {distance(query,value),this->shared_from_this()};
+	virtual std::pair<double, LeafNode<T>* > GetClosestNode(T query){
+		return {distance(query,value),this};
 	}
 
 	int times_used;
@@ -72,15 +72,15 @@ private:
 };
 
 template<typename T>
-T KDTree<T>::GetClosest(T query){
+T NodeBase<T>::GetClosest(T query){
 	auto res = GetClosestNode(query);
 	return res.second->GetValue();
 }
 
 template<typename T>
-T KDTree<T>::PopClosest(T query){
+T NodeBase<T>::PopClosest(T query){
 	auto res = GetClosestNode(query);
-	KDTree<T>* node_ptr = res.second.get();
+	NodeBase<T>* node_ptr = res.second;
 	while(true){
 		node_ptr->ReduceLeaves();
 		node_ptr = node_ptr->parent;
@@ -92,11 +92,11 @@ T KDTree<T>::PopClosest(T query){
 }
 
 template<typename T>
-class InternalNode : public KDTree<T>{
+class InternalNode : public NodeBase<T>{
 public:
-	InternalNode(std::shared_ptr<KDTree<T> > left, std::shared_ptr<KDTree<T> > right,
+	InternalNode(std::unique_ptr<NodeBase<T> > p_left, std::unique_ptr<NodeBase<T> > p_right,
 							 int dimension, double median)
-		: left(left), right(right), dimension(dimension), median(median) {
+		: left(std::move(p_left)), right(std::move(p_right)), dimension(dimension), median(median) {
 		num_leaves = left->GetNumLeaves() + right->GetNumLeaves();
 		left->SetParent(this);
 		right->SetParent(this);
@@ -109,7 +109,7 @@ public:
 		num_leaves--;
 	}
 private:
-	virtual std::pair<double, std::shared_ptr<LeafNode<T> > > GetClosestNode(T query){
+	virtual std::pair<double, LeafNode<T>* > GetClosestNode(T query){
 		// If one of the branches is empty, this becomes really easy.
 		if(left->GetNumLeaves() == 0){
 			return right->GetClosestNode(query);
@@ -132,66 +132,80 @@ private:
 		return (res1.first < res2.first) ? res1 : res2;
 	}
 
-	std::shared_ptr<KDTree<T> > left;
-	std::shared_ptr<KDTree<T> > right;
+	std::unique_ptr<NodeBase<T> > left;
+	std::unique_ptr<NodeBase<T> > right;
 	int num_leaves;
 	int dimension;
 	double median;
 };
 
 template<typename T>
-std::shared_ptr<KDTree<T> > make_kd_tree(T* arr, size_t n, int start_dim = 0){
-	assert(n>0);
-	if(n==1){
-		return std::make_shared<LeafNode<T> >(arr[0]);
-	} else {
-		// Loop over each dimension in case all values are equal in one dimension.
-		for(int dim_mod = 0; dim_mod<T::dimensions; dim_mod++){
-			int dimension = (start_dim + dim_mod) % T::dimensions;
+class KDTree{
+public:
+	KDTree(std::vector<T> vec){
+		root = make_node(vec.data(), vec.size());
+	}
 
-			// Sort the array according to the dimension of interest.
-			std::sort(arr, arr+n,
-								[dimension](T a, T b){return a.get(dimension) < b.get(dimension);});
+	T PopClosest(T query){
+		return root->PopClosest(query);
+	}
 
-			// Search for the median starting at n/2.
-			size_t median_index;
-			bool found_median = false;
-			for(median_index = std::max(n/2,size_t(1)); median_index<n; median_index++){
-				if(arr[median_index].get(dimension) > arr[median_index-1].get(dimension)){
-					found_median = true;
-					break;
-				}
-			}
+	T GetClosest(T query){
+		return root->GetClosest(query);
+	}
 
-			// Search for the median counting down.
-			if(!found_median){
-				for(median_index=n/2; median_index>0; median_index--){
+private:
+	std::unique_ptr<NodeBase<T> > make_node(T* arr, size_t n, int start_dim = 0){
+		assert(n>0);
+		if(n==1){
+			return std::unique_ptr<LeafNode<T> >(new LeafNode<T>(arr[0]));
+		} else {
+			// Loop over each dimension in case all values are equal in one dimension.
+			for(int dim_mod = 0; dim_mod<T::dimensions; dim_mod++){
+				int dimension = (start_dim + dim_mod) % T::dimensions;
+
+				// Sort the array according to the dimension of interest.
+				std::sort(arr, arr+n,
+									[dimension](T a, T b){return a.get(dimension) < b.get(dimension);});
+
+				// Search for the median starting at n/2.
+				size_t median_index;
+				bool found_median = false;
+				for(median_index = std::max(n/2,size_t(1)); median_index<n; median_index++){
 					if(arr[median_index].get(dimension) > arr[median_index-1].get(dimension)){
 						found_median = true;
 						break;
 					}
 				}
+
+				// Search for the median counting down.
+				if(!found_median){
+					for(median_index=n/2; median_index>0; median_index--){
+						if(arr[median_index].get(dimension) > arr[median_index-1].get(dimension)){
+							found_median = true;
+							break;
+						}
+					}
+				}
+
+				// Will be true so long as the coordinate is not equal for everything in this dimension.
+				if(found_median){
+
+					int next_dim = (dimension+1) % T::dimensions;
+					double median = arr[median_index].get(dimension);
+					return std::unique_ptr<InternalNode<T> >(new InternalNode<T>(
+												 make_node(arr, median_index, next_dim),
+												 make_node(arr+median_index,n-median_index, next_dim),
+												 dimension,median));
+				}
 			}
 
-			// Will be true so long as the coordinate is not equal for everything in this dimension.
-			if(found_median){
-
-				int next_dim = (dimension+1) % T::dimensions;
-				double median = arr[median_index].get(dimension);
-				return std::make_shared<InternalNode<T> >(make_kd_tree(arr, median_index, next_dim),
-																									make_kd_tree(arr+median_index,n-median_index, next_dim),
-																									dimension,median);
-			}
+			// If we got here, then everything value remaining is equal.
+			return std::unique_ptr<LeafNode<T> >(new LeafNode<T>(arr[0],n));
 		}
-
-		// If we got here, then everything value remaining is equal.
-		return std::make_shared<LeafNode<T> >(arr[0],n);
 	}
-}
 
-template<typename T>
-std::shared_ptr<KDTree<T> > make_kd_tree(std::vector<T> vec){
-	return make_kd_tree(vec.data(), vec.size());
-}
+	std::unique_ptr<NodeBase<T> > root;
+};
 
 #endif /* _KDTREE_H_ */

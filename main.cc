@@ -38,7 +38,7 @@ void MakeVideo(GrowthImage& g, std::string output, int iterations_per_frame){
 	std::stringstream ss;
 	ss << "ffmpeg -f image2 -framerate 12 -i \"temp/growth_%d.png\" -s "
 		 << g.GetWidth() << "x" << g.GetHeight()
-		 << " -vcodec h264 -cbr 18"
+		 << " -vcodec h264 -crf 18"
 		 << " " << output;
 	std::string str = ss.str();
 	err = system(str.c_str());
