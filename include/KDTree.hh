@@ -6,6 +6,9 @@
 #include <cstddef> // for size_t
 #include <algorithm> // for std::sort
 #include <cassert>
+#include <vector>
+#include <tuple>
+#include <cfloat>
 
 template<typename T>
 class LeafNode;
@@ -14,17 +17,19 @@ template<typename T>
 class InternalNode;
 
 template<typename T>
-double distance(T a, T b){
+double distance2(T a, T b){
 	double output = 0;
 	for(int i=0; i<T::dimensions; i++){
 		output += (a.get(i)-b.get(i)) * (a.get(i)-b.get(i));
 	}
-	return std::sqrt(output);
+	return output;
 }
 
 template<typename T>
 class NodeBase{
 public:
+	typedef std::tuple<double, LeafNode<T>*, size_t> SearchRes;
+
 	NodeBase() : parent(nullptr) {}
 
 	// Gets the number of leaves that are direct or indirect children.
@@ -38,7 +43,7 @@ public:
 
 private:
 	// Returns a (distance,leafnode) pair of the closest value.
-	virtual std::pair<double,LeafNode<T>*> GetClosestNode(T query) = 0;
+	virtual SearchRes GetClosestNode(T query) = 0;
 	void SetParent(NodeBase<T>* par){parent = par;}
 	friend class InternalNode<T>;
 
@@ -48,39 +53,63 @@ private:
 template<typename T>
 class LeafNode : public NodeBase<T> {
 public:
-	LeafNode(T value, int repeats=1) : value(value), times_used(0), repeats(repeats) {}
+	LeafNode(std::vector<T> p_values)
+		: values(std::move(p_values)), used(values.size(),false), leaves_unused(values.size()) {
+		assert(leaves_unused>0);
+	}
 
 	virtual int GetNumLeaves(){
-		return repeats - times_used;
+		return leaves_unused;
 	}
 	virtual void ReduceLeaves(){
-		times_used++;
+		leaves_unused--;
+	}
+	void MarkAsUsed(size_t index){
+		used[index] = true;
 	}
 
-	T GetValue(){
-		return value;
+	T GetValue(size_t index){
+		return values[index];
+	}
+
+	T PopValue(size_t index){
+		used[index] = true;
+		return values[index];
 	}
 
 private:
-	virtual std::pair<double, LeafNode<T>* > GetClosestNode(T query){
-		return {distance(query,value),this};
+	virtual typename NodeBase<T>::SearchRes GetClosestNode(T query){
+		assert(leaves_unused > 0);
+
+		double best_distance2 = DBL_MAX;
+		size_t best_index;
+		for(size_t i=0; i<values.size(); i++){
+			if(!used[i]){
+				double dist2 = distance2(values[i],query);
+				if(dist2 < best_distance2){
+					best_distance2 = dist2;
+					best_index = i;
+				}
+			}
+		}
+		return std::make_tuple(best_distance2, this, best_index);
 	}
 
-	int times_used;
-	int repeats;
-	T value;
+	std::vector<T> values;
+	std::vector<bool> used;
+	int leaves_unused;
 };
 
 template<typename T>
 T NodeBase<T>::GetClosest(T query){
 	auto res = GetClosestNode(query);
-	return res.second->GetValue();
+	return std::get<1>(res)->GetValue();
 }
 
 template<typename T>
 T NodeBase<T>::PopClosest(T query){
 	auto res = GetClosestNode(query);
-	NodeBase<T>* node_ptr = res.second;
+	NodeBase<T>* node_ptr = std::get<1>(res);
 	while(true){
 		node_ptr->ReduceLeaves();
 		node_ptr = node_ptr->parent;
@@ -88,7 +117,7 @@ T NodeBase<T>::PopClosest(T query){
 			break;
 		}
 	}
-	return res.second->GetValue();
+	return std::get<1>(res)->PopValue(std::get<2>(res));
 }
 
 template<typename T>
@@ -109,7 +138,9 @@ public:
 		num_leaves--;
 	}
 private:
-	virtual std::pair<double, LeafNode<T>* > GetClosestNode(T query){
+	virtual typename NodeBase<T>::SearchRes GetClosestNode(T query){
+		assert(num_leaves > 0);
+
 		// If one of the branches is empty, this becomes really easy.
 		if(left->GetNumLeaves() == 0){
 			return right->GetClosestNode(query);
@@ -117,19 +148,16 @@ private:
 			return left->GetClosestNode(query);
 		}
 
-		// cout << "Comparing dimension " << dimension << " value " << query.get(dimension)
-		// 		 << " to median value " << median << endl;
-
 		// Check on the side that is recommended by the median heuristic.
 		double diff = query.get(dimension) - median;
 		auto res1 = (diff<0) ? left->GetClosestNode(query) : right->GetClosestNode(query);
-		if(std::abs(diff) > res1.first){
+		if(diff*diff > std::get<0>(res1)){
 			return res1;
 		}
 
 		// Couldn't bail out early, so check on the other side and compare.
 		auto res2 = (diff<0) ? right->GetClosestNode(query) : left->GetClosestNode(query);
-		return (res1.first < res2.first) ? res1 : res2;
+		return (std::get<0>(res1) < std::get<0>(res2)) ? res1 : res2;
 	}
 
 	std::unique_ptr<NodeBase<T> > left;
@@ -157,8 +185,10 @@ public:
 private:
 	std::unique_ptr<NodeBase<T> > make_node(T* arr, size_t n, int start_dim = 0){
 		assert(n>0);
-		if(n==1){
-			return std::unique_ptr<LeafNode<T> >(new LeafNode<T>(arr[0]));
+		if(n < 100){
+			std::vector<T> elements = {arr,arr+n};
+			assert(elements.size() > 0);
+			return std::unique_ptr<LeafNode<T> >(new LeafNode<T>(elements));
 		} else {
 			// Loop over each dimension in case all values are equal in one dimension.
 			for(int dim_mod = 0; dim_mod<T::dimensions; dim_mod++){
@@ -201,7 +231,9 @@ private:
 			}
 
 			// If we got here, then everything value remaining is equal.
-			return std::unique_ptr<LeafNode<T> >(new LeafNode<T>(arr[0],n));
+			std::vector<T> elements(arr,arr+n);
+			assert(elements.size() > 0);
+			return std::unique_ptr<LeafNode<T> >(new LeafNode<T>(elements));
 		}
 	}
 

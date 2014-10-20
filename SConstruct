@@ -12,7 +12,9 @@ env.Append(CPPPATH=['include'])
 env.Append(LIBS=['png'])
 env.Append(LIBS=[File('/usr/local/lib/libboost_program_options.a')])
 
-if ARGUMENTS.get('DEBUG'):
+if ARGUMENTS.get('RELEASE'):
+    env.Append(CPPDEFINES=['NDEBUG'])
+else:
     env.Append(CPPFLAGS=['-g'])
 
 if ARGUMENTS.get('PROFILE'):
