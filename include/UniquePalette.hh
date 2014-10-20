@@ -25,7 +25,7 @@ struct Color{
 		}
 		assert(false);
 	}
-};;
+};
 
 class UniquePalette{
 public:

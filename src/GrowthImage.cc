@@ -72,10 +72,13 @@ bool GrowthImage::Iterate(){
 	view(loc.i,loc.j) = {color.r, color.g, color.b};
 
 	ExtendFrontier(loc,color);
+	frontier_set.erase(loc);
+
 
 	previous_loc = loc;
 
-	return frontier_vector.size();
+
+	return frontier_set.size();
 }
 
 void GrowthImage::ExtendFrontier(Point loc, Color color){
@@ -97,11 +100,11 @@ void GrowthImage::ExtendFrontier(Point loc, Color color){
 
 void GrowthImage::IterateUntilDone(){
 	int body_size = 0;
-	while(frontier_vector.size()){
+	while(frontier_set.size()){
 		if(body_size%10000==0){
 			cout << "\r                                                   \r"
-					 << "Body: " << body_size << "\tFrontier: " << frontier_vector.size()
-					 << "\tUnexplored: " << image.height()*image.width() - body_size - frontier_vector.size()
+					 << "Body: " << body_size << "\tFrontier: " << frontier_set.size()
+					 << "\tUnexplored: " << image.height()*image.width() - body_size - frontier_set.size()
 					 << std::flush;
 		}
 		Iterate();
@@ -116,6 +119,8 @@ Point GrowthImage::ChooseLocation(){
 		return ChooseFrontierLocation();
 	case LocationChoice::Snaking:
 		return ChooseSnakingLocation();
+	case LocationChoice::Sequential:
+		return ChooseSequentialLocation();
 	case LocationChoice::Preferred:
 		return ChoosePreferredLocation(preferred_location_iterations);
 	}
@@ -123,7 +128,6 @@ Point GrowthImage::ChooseLocation(){
 
 Point GrowthImage::ChooseFrontierLocation(){
 	auto value = poprandom(rng,frontier_vector);
-	frontier_set.erase(value);
 	return value;
 }
 
@@ -140,8 +144,19 @@ Point GrowthImage::ChoosePreferredLocation(int n_check){
 	}
 
 	auto value = popanywhere(frontier_vector,best_index);
-	frontier_set.erase(value);
 	return value;
+}
+
+Point GrowthImage::ChooseSequentialLocation(){
+	Point output;
+	if(previous_loc.i == -1){
+		output = {0,0};
+	} else if (previous_loc.i == image.width()-1){
+		output = {0,previous_loc.j+1};
+	} else {
+		output = {previous_loc.i+1,previous_loc.j};
+	}
+	return output;
 }
 
 double GrowthImage::ChoosePreference(Point p, Color){

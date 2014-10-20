@@ -33,7 +33,7 @@ namespace std{
 }
 
 SmartEnum(ColorChoice, Nearest, Sequential);
-SmartEnum(LocationChoice, Random, Snaking, Preferred);
+SmartEnum(LocationChoice, Random, Snaking, Preferred, Sequential);
 
 class GrowthImage{
 public:
@@ -63,6 +63,7 @@ private:
 	Point ChooseLocation();
 	Point ChooseFrontierLocation();
 	Point ChooseSnakingLocation();
+	Point ChooseSequentialLocation();
 	Point ChoosePreferredLocation(int n_check);
 
 	double ChoosePreference(Point p, Color color);
