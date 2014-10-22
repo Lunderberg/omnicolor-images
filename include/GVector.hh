@@ -2,7 +2,9 @@
 #define _GVECTOR_H_
 
 
-// An arbitrary dimension
+// An arbitrary dimension vector class.
+// GVector<N> can be constructed either from a std::array<double,N>
+//   or by passing in N doubles as arguments to the constructor.
 
 #include <type_traits>
 #include <array>
@@ -57,28 +59,57 @@ struct GVector{
 	}
 
 	// Cross-product
-	template<typename = typename std::enable_if< N==3 >::type>
-	GVector<N> operator^(const GVector<N>& b) const {
+	GVector<N> Cross(const GVector<N>& b) const {
+		static_assert(N==3,"Cross product available only for dimensions == 3");
 		return GVector<N>(Y()*b.Z() - Z()*b.Y(),
 											Z()*b.X() - X()*b.Z(),
 											X()*b.Y() - Y()*b.X());
 	}
 
+	GVector<N> operator^(const GVector<N>& b) const {
+		static_assert(N==3,"Cross product available only for dimensions == 3");
+		return Cross(b);
+	}
+
+	// Dot-product
+	double Dot(const GVector<N>& b) const {
+		double output = 0;
+		for(unsigned int i=0; i<N; i++){
+			output += data[i]*b.data[i];
+		}
+		return output;
+	}
+
 	// Ease of use accessors for dimensions x,y,z
-	template<typename = typename std::enable_if< N>=1 >::type>
-	double& X(){return data[0];}
-	template<typename = typename std::enable_if< N>=1 >::type>
-	const double& X() const {return data[0];}
+	double& X() {
+		static_assert(N>=1,"X available only for dimensions >= 1");
+		return data[0];
+	}
 
-	template<typename = typename std::enable_if< N>=2 >::type>
-	double& Y(){return data[1];}
-	template<typename = typename std::enable_if< N>=2 >::type>
-	const double& Y() const {return data[1];}
+	const double& X() const {
+		static_assert(N>=1,"X available only for dimensions >= 1");
+		return data[0];
+	}
 
-	template<typename = typename std::enable_if< N>=3 >::type>
-	double& Z(){return data[2];}
-	template<typename = typename std::enable_if< N>=3 >::type>
-	const double& Z() const {return data[2];}
+	double& Y() {
+		static_assert(N>=2,"Y available only for dimensions >= 2");
+		return data[1];
+	}
+
+	const double& Y() const {
+		static_assert(N>=2,"Y available only for dimensions >= 2");
+		return data[1];
+	}
+
+	double& Z() {
+		static_assert(N>=3,"Z available only for dimensions >= 3");
+		return data[2];
+	}
+
+	const double& Z() const {
+		static_assert(N>=3,"Z available only for dimensions >= 3");
+		return data[2];
+	}
 };
 
 // Vector addition
@@ -108,11 +139,7 @@ GVector<N> operator*(GVector<N> a, double b){
 // Dot product
 template<unsigned int N>
 double operator*(const GVector<N>& a, const GVector<N>& b){
-	double output = 0;
-	for(unsigned int i=0; i<N; i++){
-		output += a.data[i]*b.data[i];
-	}
-	return output;
+	return a.Dot(b);
 }
 
 template<unsigned int N>
@@ -125,6 +152,7 @@ std::ostream& operator<<(std::ostream& st, GVector<N> gv){
 		}
 	}
 	st << ")";
+	return st;
 }
 
 #endif /* _GVECTOR_H_ */
