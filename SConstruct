@@ -21,7 +21,7 @@ if ARGUMENTS.get('PROFILE'):
     env.Append(CPPFLAGS=['-pg','-g'])
     env.Append(LINKFLAGS=['-pg'])
 
-if int(optimize):
+if optimize!='0':
     env.Append(CPPFLAGS=['-O{}'.format(optimize)])
 
 for main in Glob('*.cc'):
