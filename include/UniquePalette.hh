@@ -9,12 +9,12 @@
 #include "KDTree.hh"
 
 struct Color{
-	Color(unsigned char r, unsigned char g, unsigned char b)
+	Color(unsigned char r=0, unsigned char g=0, unsigned char b=0)
 		: r(r), g(g), b(b) { }
 	unsigned char r,g,b;
 
 	enum {dimensions = 3};
-	int get(int n){
+	int get(int n) const {
 		switch(n){
 		case 0:
 			return r;
@@ -22,8 +22,24 @@ struct Color{
 			return g;
 		case 2:
 			return b;
+		default:
+			assert(false);
 		}
-		assert(false);
+	}
+	int set(int n, unsigned char value){
+		switch(n){
+		case 0:
+			r = value;
+			break;
+		case 1:
+			g = value;
+			break;
+		case 2:
+			b = value;
+			break;
+		default:
+			assert(false);
+		}
 	}
 };
 

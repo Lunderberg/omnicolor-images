@@ -1,14 +1,16 @@
 #ifndef _KDTREE_H_
 #define _KDTREE_H_
 
-#include <memory> // for std::shared_ptr
-#include <cmath> // for std::abs
-#include <cstddef> // for size_t
 #include <algorithm> // for std::sort
 #include <cassert>
-#include <vector>
-#include <tuple>
 #include <cfloat>
+#include <cmath> // for std::abs
+#include <cstddef> // for size_t
+#include <iostream>
+#include <list>
+#include <memory> // for std::shared_ptr
+#include <tuple>
+#include <vector>
 
 template<typename T>
 class LeafNode;
@@ -120,15 +122,23 @@ T NodeBase<T>::PopClosest(T query){
 	return std::get<1>(res)->PopValue(std::get<2>(res));
 }
 
+struct distance_index{
+	distance_index(int index = 0, double dist2=0)
+		: index(index), dist2(dist2) { }
+	double dist2;
+	int index;
+};
+
 template<typename T>
 class InternalNode : public NodeBase<T>{
 public:
-	InternalNode(std::unique_ptr<NodeBase<T> > p_left, std::unique_ptr<NodeBase<T> > p_right,
-							 int dimension, double median)
-		: left(std::move(p_left)), right(std::move(p_right)), dimension(dimension), median(median) {
-		num_leaves = left->GetNumLeaves() + right->GetNumLeaves();
-		left->SetParent(this);
-		right->SetParent(this);
+	InternalNode(std::vector<std::unique_ptr<NodeBase<T> > > children, T median)
+		: children(std::move(children)), median(median) {
+		num_leaves = 0;
+		for(auto& child : this->children){
+			child->SetParent(this);
+			num_leaves += child->GetNumLeaves();
+		}
 	}
 
 	virtual int GetNumLeaves(){
@@ -138,39 +148,70 @@ public:
 		num_leaves--;
 	}
 private:
+	std::array<distance_index, 1<< T::dimensions > distances;
+
 	virtual typename NodeBase<T>::SearchRes GetClosestNode(T query){
 		assert(num_leaves > 0);
+		int num_children = 1 << T::dimensions;
 
-		// If one of the branches is empty, this becomes really easy.
-		if(left->GetNumLeaves() == 0){
-			return right->GetClosestNode(query);
-		} else if (right->GetNumLeaves() == 0){
-			return left->GetClosestNode(query);
+		// Determine the minimum distance to a point in each quadrant.
+		// Sum the square of the distance to each boundary that must be crossed.
+		for(int i=0; i<num_children; i++){
+			distances[i].dist2 = 0;
+			distances[i].index = i;
+			for(int j=0; j < T::dimensions; j++){
+				bool point_below_median = query.get(j) < median.get(j);
+				bool quadrant_below_median = (7-i) & (1<<j);
+				if(point_below_median ^ quadrant_below_median){
+					double dist_to_median = query.get(j) - median.get(j);
+					distances[i].dist2 += dist_to_median * dist_to_median;
+				}
+			}
 		}
+		std::sort(distances.begin(), distances.end(),
+				  [](const distance_index& a, const distance_index& b){
+					  return a.dist2 < b.dist2;
+				  });
 
-		// Check on the side that is recommended by the median heuristic.
-		double diff = query.get(dimension) - median;
-		auto res1 = (diff<0) ? left->GetClosestNode(query) : right->GetClosestNode(query);
-		if(diff*diff > std::get<0>(res1)){
-			return res1;
+		// Starting from the closest quadrant, check each.
+		// If the quadrant could not contain anything, return early.
+		typename NodeBase<T>::SearchRes output(std::numeric_limits<double>::max(),
+											   NULL, 0);
+		for(auto& val : distances){
+			// If the best is better than anything else possible, return early.
+			if(std::get<0>(output) < val.dist2){
+				return output;
+			}
+			int leafnum = val.index;
+
+			// Don't search an empty node.
+			if(children[leafnum]->GetNumLeaves() == 0){
+				continue;
+			}
+
+			// Search, and replace if better.
+			auto next_res = children[leafnum]->GetClosestNode(query);
+			if(std::get<0>(next_res) < std::get<0>(output)){
+				output = next_res;
+			}
 		}
-
-		// Couldn't bail out early, so check on the other side and compare.
-		auto res2 = (diff<0) ? right->GetClosestNode(query) : left->GetClosestNode(query);
-		return (std::get<0>(res1) < std::get<0>(res2)) ? res1 : res2;
+		return output;
 	}
 
-	std::unique_ptr<NodeBase<T> > left;
-	std::unique_ptr<NodeBase<T> > right;
+	// Leaves are in binary order, according to being above or below the median
+	//  in each dimension.
+	// That is, if i has binary representation k_0, k_1, ..., k_n,
+	//  then i contains values that are above the median for each k_j that is 1.
+	std::vector<std::unique_ptr<NodeBase<T> > > children;
 	int num_leaves;
-	int dimension;
-	double median;
+	T median;
 };
 
 template<typename T>
 class KDTree{
 public:
 	KDTree(std::vector<T> vec){
+		std::random_shuffle(vec.begin(), vec.end());
 		root = make_node(vec.data(), vec.size());
 	}
 
@@ -183,58 +224,53 @@ public:
 	}
 
 private:
-	std::unique_ptr<NodeBase<T> > make_node(T* arr, size_t n, int start_dim = 0){
+	std::unique_ptr<NodeBase<T> > make_node(T* arr, size_t n){
 		assert(n>0);
 		if(n < 100){
 			std::vector<T> elements = {arr,arr+n};
 			assert(elements.size() > 0);
 			return std::unique_ptr<LeafNode<T> >(new LeafNode<T>(elements));
 		} else {
-			// Loop over each dimension in case all values are equal in one dimension.
-			for(int dim_mod = 0; dim_mod<T::dimensions; dim_mod++){
-				int dimension = (start_dim + dim_mod) % T::dimensions;
+			// Determine the median point in n dimensions.
+			// Has runtime of O(k*n), where k is number of points and n is dimension
+			T median;
+			for(int dimension = 0; dimension<T::dimensions; dimension++){
+				std::nth_element(arr, arr+n/2, arr+n,
+								 [dimension](const T& a, const T& b){
+									 return a.get(dimension) < b.get(dimension);
+								 });
+				median.set(dimension, arr[n/2].get(dimension));
+			}
 
-				// Sort the array according to the dimension of interest.
-				std::sort(arr, arr+n,
-									[dimension](T a, T b){return a.get(dimension) < b.get(dimension);});
-
-				// Search for the median starting at n/2.
-				size_t median_index;
-				bool found_median = false;
-				for(median_index = std::max(n/2,size_t(1)); median_index<n; median_index++){
-					if(arr[median_index].get(dimension) > arr[median_index-1].get(dimension)){
-						found_median = true;
-						break;
-					}
-				}
-
-				// Search for the median counting down.
-				if(!found_median){
-					for(median_index=n/2; median_index>0; median_index--){
-						if(arr[median_index].get(dimension) > arr[median_index-1].get(dimension)){
-							found_median = true;
-							break;
-						}
-					}
-				}
-
-				// Will be true so long as the coordinate is not equal for everything in this dimension.
-				if(found_median){
-
-					int next_dim = (dimension+1) % T::dimensions;
-					double median = arr[median_index].get(dimension);
-					return std::unique_ptr<InternalNode<T> >(new InternalNode<T>(
-												 make_node(arr, median_index, next_dim),
-												 make_node(arr+median_index,n-median_index, next_dim),
-												 dimension,median));
+			// Partitions the array according to the value in each dimension.
+			std::list<T*> boundaries;
+			boundaries.push_back(arr);
+			boundaries.push_back(arr+n);
+			for(int dimension = 0; dimension<T::dimensions; dimension++){
+				for(auto it = ++boundaries.begin(); it!=boundaries.end(); it++){
+					auto prev = std::prev(it);
+					T* median_index = std::partition(*prev, *it,
+													 [dimension,&median](const T& a){
+														   return a.get(dimension) < median.get(dimension);
+													   });
+					boundaries.insert(it, median_index);
 				}
 			}
 
-			// If we got here, then everything value remaining is equal.
-			std::vector<T> elements(arr,arr+n);
-			assert(elements.size() > 0);
-			return std::unique_ptr<LeafNode<T> >(new LeafNode<T>(elements));
+			// Make each child node to be used in making the InternalNode.
+			std::vector<std::unique_ptr<NodeBase<T> > > children;
+			auto one_before_end = boundaries.end();
+			one_before_end--;
+			for(auto it = boundaries.begin(); it!=one_before_end; it++){
+				auto next = std::next(it);
+				children.push_back(make_node(*it, *next - *it));
+			}
+			return std::unique_ptr<InternalNode<T> >(new InternalNode<T>(std::move(children), median));
 		}
+			// // If we got here, then everything value remaining is equal.
+			// std::vector<T> elements(arr,arr+n);
+			// assert(elements.size() > 0);
+			// return std::unique_ptr<LeafNode<T> >(new LeafNode<T>(elements));
 	}
 
 	std::unique_ptr<NodeBase<T> > root;

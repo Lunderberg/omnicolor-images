@@ -113,7 +113,7 @@ void GrowthImage::ExtendFrontier(Point loc, Color color){
 void GrowthImage::IterateUntilDone(){
   int body_size = 0;
   while(frontier_set.size()){
-    if(body_size%10000==0){
+    if(body_size%100==0){
       cout << "\r                                                   \r"
            << "Body: " << body_size << "\tFrontier: " << frontier_set.size()
            << "\tUnexplored: " << image.height()*image.width() - body_size - frontier_set.size()
