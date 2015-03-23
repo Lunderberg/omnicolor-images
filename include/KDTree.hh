@@ -1,14 +1,14 @@
 #ifndef _KDTREE_H_
 #define _KDTREE_H_
 
-#include <memory> // for std::shared_ptr
-#include <cmath> // for std::abs
-#include <cstddef> // for size_t
 #include <algorithm> // for std::sort
 #include <cassert>
-#include <vector>
-#include <tuple>
 #include <cfloat>
+#include <cmath> // for std::abs
+#include <cstddef> // for size_t
+#include <memory> // for std::shared_ptr
+#include <tuple>
+#include <vector>
 
 template<typename T>
 class LeafNode;
@@ -194,33 +194,20 @@ private:
 			for(int dim_mod = 0; dim_mod<T::dimensions; dim_mod++){
 				int dimension = (start_dim + dim_mod) % T::dimensions;
 
-				// Sort the array according to the dimension of interest.
-				std::sort(arr, arr+n,
-									[dimension](T a, T b){return a.get(dimension) < b.get(dimension);});
+				// Find the median value.
+				std::nth_element(arr, arr+n/2, arr+n,
+								 [dimension](T a, T b){return a.get(dimension) < b.get(dimension);});
+				double median_value = arr[n/2].get(dimension);
 
-				// Search for the median starting at n/2.
-				size_t median_index;
-				bool found_median = false;
-				for(median_index = std::max(n/2,size_t(1)); median_index<n; median_index++){
-					if(arr[median_index].get(dimension) > arr[median_index-1].get(dimension)){
-						found_median = true;
-						break;
-					}
-				}
-
-				// Search for the median counting down.
-				if(!found_median){
-					for(median_index=n/2; median_index>0; median_index--){
-						if(arr[median_index].get(dimension) > arr[median_index-1].get(dimension)){
-							found_median = true;
-							break;
-						}
-					}
-				}
+				// Find the median index
+				T* median = std::partition(arr, arr+n,
+										   [dimension, median_value](T a){
+											   return a.get(dimension) < median_value;
+										   });
+				size_t median_index = median - arr;
 
 				// Will be true so long as the coordinate is not equal for everything in this dimension.
-				if(found_median){
-
+				if(median_index != 0 && median_index != n){
 					int next_dim = (dimension+1) % T::dimensions;
 					double median = arr[median_index].get(dimension);
 					return std::unique_ptr<InternalNode<T> >(new InternalNode<T>(
