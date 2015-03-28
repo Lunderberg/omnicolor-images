@@ -74,7 +74,7 @@ private:
 		// End condition, I am at a leaf node.
 		if(node.n == 1 ||
 		   node.dimension == -1){
-			int result_index = nodes[node_index].i_start;
+			int result_index = node.i_start;
 			double dist2 = distance2(search_points[result_index], query);
 			return {result_index, dist2};
 		}
@@ -111,7 +111,7 @@ private:
 
 
 		size_t node_index = nodes.size();
-		nodes.push_back(Node());
+		nodes.emplace_back();
 		Node& node = nodes[node_index];
 
 		node.i_start = i_start;
@@ -153,7 +153,7 @@ private:
 				}
 			}
 
-			// If we got here, then everything value remaining is equal.
+			// If we got here, then everything remaining is equal.
 			node.dimension = -1;
 			return node_index;
 		}

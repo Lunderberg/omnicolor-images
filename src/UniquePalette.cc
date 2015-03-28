@@ -7,8 +7,11 @@
 #include <stdexcept>
 
 #include "common.hh"
+#include "KDTree.hh"
 
 UniquePalette::UniquePalette() { }
+
+UniquePalette::~UniquePalette() { }
 
 void UniquePalette::GenerateUniformPalette(int n_colors){
 	assert(n_colors > 0);
@@ -17,6 +20,7 @@ void UniquePalette::GenerateUniformPalette(int n_colors){
 	double dim_size = std::pow(n_colors,1.0/3.0);
 
 	std::vector<Color> temp_colors;
+	temp_colors.reserve(n_colors);
 	for(int i=0; i < n_colors; i++){
 		double val = i;
 		val /= dim_size;
@@ -31,7 +35,7 @@ void UniquePalette::GenerateUniformPalette(int n_colors){
 		temp_colors.push_back({r*255,g*255,b*255});
 	}
 
-	colors = std::unique_ptr<KDTree<Color> >(new KDTree<Color>(temp_colors));
+	colors = std::unique_ptr<KDTree<Color> >(new KDTree<Color>(std::move(temp_colors)));
 }
 
 Color UniquePalette::PopClosest(Color col, double epsilon){
