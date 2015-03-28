@@ -1,8 +1,6 @@
 #include "GrowthImage.hh"
 
 #include <iostream>
-using std::cout;
-using std::endl;
 
 #include <cassert>
 #include <cfloat>
@@ -13,7 +11,7 @@ using std::endl;
 
 GrowthImage::GrowthImage(int width, int height, int seed)
   : image(width,height), view(boost::gil::view(image)), previous_loc(-1,-1),
-    color_choice(ColorChoice::Nearest),	preferred_location_iterations(10),
+    color_choice(ColorChoice::Nearest),	preferred_location_iterations(10), epsilon(0),
     rng(seed ? seed : time(0)), perlin(rng){
   Reset();
   palette.GenerateUniformPalette(width*height);
@@ -53,6 +51,14 @@ void GrowthImage::SetPerlinGridSize(double grid_size){
 
 void GrowthImage::SetPreferredLocationIterations(int n){
   preferred_location_iterations = n;
+}
+
+void GrowthImage::SetEpsilon(double epsilon){
+  this->epsilon = epsilon;
+}
+
+double GrowthImage::GetEpsilon(){
+  return epsilon;
 }
 
 void GrowthImage::Reset(){
@@ -113,16 +119,16 @@ void GrowthImage::ExtendFrontier(Point loc, Color color){
 void GrowthImage::IterateUntilDone(){
   int body_size = 0;
   while(frontier_set.size()){
-    if(body_size%10000==0){
-      cout << "\r                                                   \r"
-           << "Body: " << body_size << "\tFrontier: " << frontier_set.size()
-           << "\tUnexplored: " << image.height()*image.width() - body_size - frontier_set.size()
-           << std::flush;
+    if(body_size % 100000 == 0){
+      std::cout << "\r                                                   \r"
+                << "Body: " << body_size << "\tFrontier: " << frontier_set.size()
+                << "\tUnexplored: " << image.height()*image.width() - body_size - frontier_set.size()
+                << std::flush;
     }
     Iterate();
     body_size++;
   }
-  cout << endl;
+  std::cout << std::endl;
 }
 
 Point GrowthImage::ChooseLocation(){
@@ -261,7 +267,7 @@ Color GrowthImage::ChooseNearestColor(Point loc){
     ave_r /= count;
     ave_g /= count;
     ave_b /= count;
-    return palette.PopClosest({ave_r,ave_g,ave_b});
+    return palette.PopClosest({ave_r,ave_g,ave_b}, epsilon);
 
   } else {
     // No neighbors, so take a random color.

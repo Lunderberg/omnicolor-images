@@ -52,6 +52,8 @@ public:
   void SetPerlinOctaves(int octaves);
   void SetPerlinGridSize(double grid_size);
 
+  void SetEpsilon(double epsilon);
+
   void Reset();
   bool Iterate();
   void IterateUntilDone();
@@ -62,6 +64,8 @@ public:
 
   int GetWidth();
   int GetHeight();
+
+  double GetEpsilon();
 
 private:
   void FirstIteration();
@@ -85,6 +89,7 @@ private:
   ColorChoice color_choice;
   LocationChoice location_choice;
   PreferenceChoice preference_choice;
+  double epsilon;
 
   UniquePalette palette;
 

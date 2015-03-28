@@ -52,6 +52,7 @@ void MakeImage(GrowthImage& g, std::string output){
 
 int main(int argc, char** argv){
   int height, width;
+  double epsilon;
   int iterations_per_frame;
   ColorChoice color_choice;
   LocationChoice location_choice;
@@ -68,6 +69,7 @@ int main(int argc, char** argv){
     ("help","Print help message")
     ("width,w", po::value(&width)->default_value(256), "Width of the output image")
     ("height,h", po::value(&height)->default_value(128), "Height of the output image")
+    ("epsilon,e", po::value(&epsilon)->default_value(5), "Epsilon (allowed error).  Zero = None allowed")
     ("video,v", "Render as a video instead of a still image")
     ("iter-per-frame", po::value(&iterations_per_frame)->default_value(1000),
      "Iterations between each frame")
@@ -111,6 +113,7 @@ int main(int argc, char** argv){
   g.SetLocationChoice(location_choice);
   g.SetPreferenceChoice(preference_choice);
   g.SetPreferredLocationIterations(preferred_location_iterations);
+  g.SetEpsilon(epsilon);
 
   g.SetPerlinOctaves(perlin_octaves);
   g.SetPerlinGridSize(perlin_grid_size);

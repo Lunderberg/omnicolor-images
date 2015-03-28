@@ -34,8 +34,8 @@ void UniquePalette::GenerateUniformPalette(int n_colors){
 	colors = std::unique_ptr<KDTree<Color> >(new KDTree<Color>(temp_colors));
 }
 
-Color UniquePalette::PopClosest(Color col){
-	return colors->PopClosest(col);
+Color UniquePalette::PopClosest(Color col, double epsilon){
+	return colors->PopClosest(col, epsilon);
 }
 
 Color UniquePalette::PopBack(){

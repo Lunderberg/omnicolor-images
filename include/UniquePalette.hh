@@ -30,7 +30,7 @@ struct Color{
 class UniquePalette{
 public:
 	UniquePalette();
-	Color PopClosest(Color col);
+	Color PopClosest(Color col, double epsilon = 0);
 	Color PopBack();
 	Color PopRandom(std::mt19937& rng);
 

@@ -14,6 +14,7 @@ env.Append(LIBS=[File('/usr/local/lib/libboost_program_options.a')])
 
 if ARGUMENTS.get('RELEASE'):
     env.Append(CPPDEFINES=['NDEBUG'])
+    env.Append(CPPFLAGS=['-s'])
 else:
     env.Append(CPPFLAGS=['-g'])
 

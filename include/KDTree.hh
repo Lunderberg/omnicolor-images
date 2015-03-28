@@ -34,16 +34,32 @@ public:
 
 	// Gets the number of leaves that are direct or indirect children.
 	virtual int GetNumLeaves() = 0;
+
 	// Pops the closest value from the tree.
-	T PopClosest(T query);
+	T PopClosest(T query, double epsilon){
+		auto res = GetClosestNode(query, epsilon);
+		NodeBase<T>* node_ptr = std::get<1>(res);
+		while(true){
+			node_ptr->ReduceLeaves();
+			node_ptr = node_ptr->parent;
+			if(node_ptr == nullptr){
+				break;
+			}
+		}
+		return std::get<1>(res)->PopValue(std::get<2>(res));
+	}
+
 	// Returns the closest value from the tree.
-	T GetClosest(T query);
+	T GetClosest(T query, double epsilon){
+		auto res = GetClosestNode(query, epsilon);
+		return std::get<1>(res)->GetValue();
+	}
 	// Mark one leaf as having been finished.
 	virtual void ReduceLeaves() = 0;
 
 private:
 	// Returns a (distance,leafnode) pair of the closest value.
-	virtual SearchRes GetClosestNode(T query) = 0;
+	virtual SearchRes GetClosestNode(T query, double epsilon) = 0;
 	void SetParent(NodeBase<T>* par){parent = par;}
 	friend class InternalNode<T>;
 
@@ -78,7 +94,7 @@ public:
 	}
 
 private:
-	virtual typename NodeBase<T>::SearchRes GetClosestNode(T query){
+	virtual typename NodeBase<T>::SearchRes GetClosestNode(T query, double epsilon){
 		assert(leaves_unused > 0);
 
 		double best_distance2 = DBL_MAX;
@@ -101,26 +117,6 @@ private:
 };
 
 template<typename T>
-T NodeBase<T>::GetClosest(T query){
-	auto res = GetClosestNode(query);
-	return std::get<1>(res)->GetValue();
-}
-
-template<typename T>
-T NodeBase<T>::PopClosest(T query){
-	auto res = GetClosestNode(query);
-	NodeBase<T>* node_ptr = std::get<1>(res);
-	while(true){
-		node_ptr->ReduceLeaves();
-		node_ptr = node_ptr->parent;
-		if(node_ptr == nullptr){
-			break;
-		}
-	}
-	return std::get<1>(res)->PopValue(std::get<2>(res));
-}
-
-template<typename T>
 class InternalNode : public NodeBase<T>{
 public:
 	InternalNode(std::unique_ptr<NodeBase<T> > p_left, std::unique_ptr<NodeBase<T> > p_right,
@@ -138,25 +134,25 @@ public:
 		num_leaves--;
 	}
 private:
-	virtual typename NodeBase<T>::SearchRes GetClosestNode(T query){
+	virtual typename NodeBase<T>::SearchRes GetClosestNode(T query, double epsilon){
 		assert(num_leaves > 0);
 
 		// If one of the branches is empty, this becomes really easy.
 		if(left->GetNumLeaves() == 0){
-			return right->GetClosestNode(query);
+			return right->GetClosestNode(query, epsilon);
 		} else if (right->GetNumLeaves() == 0){
-			return left->GetClosestNode(query);
+			return left->GetClosestNode(query, epsilon);
 		}
 
 		// Check on the side that is recommended by the median heuristic.
 		double diff = query.get(dimension) - median;
-		auto res1 = (diff<0) ? left->GetClosestNode(query) : right->GetClosestNode(query);
-		if(diff*diff > std::get<0>(res1)){
+		auto res1 = (diff<0) ? left->GetClosestNode(query, epsilon) : right->GetClosestNode(query, epsilon);
+		if(diff*diff*(1+epsilon)*(1+epsilon) > std::get<0>(res1) ){
 			return res1;
 		}
 
 		// Couldn't bail out early, so check on the other side and compare.
-		auto res2 = (diff<0) ? right->GetClosestNode(query) : left->GetClosestNode(query);
+		auto res2 = (diff<0) ? right->GetClosestNode(query, epsilon) : left->GetClosestNode(query, epsilon);
 		return (std::get<0>(res1) < std::get<0>(res2)) ? res1 : res2;
 	}
 
@@ -174,18 +170,18 @@ public:
 		root = make_node(vec.data(), vec.size());
 	}
 
-	T PopClosest(T query){
-		return root->PopClosest(query);
+	T PopClosest(T query, double epsilon = 0){
+		return root->PopClosest(query, epsilon);
 	}
 
-	T GetClosest(T query){
-		return root->GetClosest(query);
+	T GetClosest(T query, double epsilon = 0){
+		return root->GetClosest(query, epsilon);
 	}
 
 private:
 	std::unique_ptr<NodeBase<T> > make_node(T* arr, size_t n, int start_dim = 0){
 		assert(n>0);
-		if(n < 100){
+		if(n < 50){
 			std::vector<T> elements = {arr,arr+n};
 			assert(elements.size() > 0);
 			return std::unique_ptr<LeafNode<T> >(new LeafNode<T>(elements));
