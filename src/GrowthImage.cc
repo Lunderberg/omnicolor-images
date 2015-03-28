@@ -10,8 +10,10 @@
 #include "common.hh"
 
 GrowthImage::GrowthImage(int width, int height, int seed)
-  : image(width,height), view(boost::gil::view(image)), previous_loc(-1,-1),
-    color_choice(ColorChoice::Nearest),	preferred_location_iterations(10), epsilon(0),
+  : color_choice(ColorChoice::Nearest), location_choice(LocationChoice::Random),
+    preference_choice(PreferenceChoice::Location), epsilon(0),
+    image(width,height), view(boost::gil::view(image)),
+    previous_loc(-1,-1), preferred_location_iterations(10),
     rng(seed ? seed : time(0)), perlin(rng){
   Reset();
   palette.GenerateUniformPalette(width*height);
@@ -141,6 +143,8 @@ Point GrowthImage::ChooseLocation(){
     return ChooseSequentialLocation();
   case LocationChoice::Preferred:
     return ChoosePreferredLocation(preferred_location_iterations);
+  default:
+    assert(false);
   }
 }
 
@@ -183,6 +187,8 @@ double GrowthImage::ChoosePreference(Point p, Color c){
     return ChoosePreferenceLocation(p,c);
   case PreferenceChoice::Perlin:
     return ChoosePreferencePerlin(p,c);
+  default:
+    assert(false);
   }
 }
 
@@ -235,10 +241,12 @@ Color GrowthImage::ChooseColor(Point loc){
     return ChooseSequentialColor(loc);
   case ColorChoice::Perlin:
     return ChoosePerlinColor(loc);
+  default:
+    assert(false);
   }
 }
 
-Color GrowthImage::ChooseSequentialColor(Point loc){
+Color GrowthImage::ChooseSequentialColor(Point){
   return palette.PopBack();
 }
 

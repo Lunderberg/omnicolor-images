@@ -14,7 +14,7 @@ PerlinNoise::PerlinNoise(std::mt19937 rng) : octaves(1), grid_size(1){
     p = {cos(theta),sin(theta)};
   }
 
-  for(int i=0; i<permute.size(); i++){
+  for(unsigned int i=0; i<permute.size(); i++){
     permute[i] = i;
   }
 

@@ -17,8 +17,10 @@ void MakeVideo(GrowthImage& g, std::string output, int iterations_per_frame){
   int picnum = 0;
 
   err = system("rm -rf temp && mkdir temp");
+  if(err){
+    return;
+  }
 
-  int framenum = 0;
   for(int i=0; g.Iterate(); i++){
     if(i%iterations_per_frame==0){
       std::stringstream ss;
@@ -42,6 +44,9 @@ void MakeVideo(GrowthImage& g, std::string output, int iterations_per_frame){
      << " " << output;
   std::string str = ss.str();
   err = system(str.c_str());
+  if(err){
+    return;
+  }
   //err = system("rm -rf temp");
 }
 

@@ -7,7 +7,7 @@ if ARGUMENTS.get('OPTIMIZE'):
 else:
     optimize = 3
 
-env.Append(CPPFLAGS=['-std=c++11','-Wno-narrowing'])
+env.Append(CPPFLAGS=['-std=c++11','-Wall','-Wextra','-pedantic','-Wno-narrowing'])
 env.Append(CPPPATH=['include'])
 env.Append(LIBS=['png'])
 env.Append(LIBS=[File('/usr/local/lib/libboost_program_options.a')])
