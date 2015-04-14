@@ -3,11 +3,10 @@
 
 #include <algorithm> // for std::sort
 #include <cassert>
-#include <cfloat>
+#include <cfloat> // for DBL_MAX
 #include <cmath> // for std::abs
 #include <cstddef> // for size_t
 #include <memory> // for std::shared_ptr
-#include <tuple>
 #include <vector>
 
 template<typename T>
@@ -28,7 +27,13 @@ double distance2(T a, T b){
 template<typename T>
 class NodeBase{
 public:
-	typedef std::tuple<double, LeafNode<T>*, size_t> SearchRes;
+	struct SearchRes{
+		SearchRes(double dist2, LeafNode<T>* leaf, size_t index)
+			: dist2(dist2), leaf(leaf), index(index) { }
+		double dist2;
+		LeafNode<T>* leaf;
+		size_t index;
+	};
 
 	NodeBase() : parent(nullptr) {}
 
@@ -38,7 +43,7 @@ public:
 	// Pops the closest value from the tree.
 	T PopClosest(T query, double epsilon){
 		auto res = GetClosestNode(query, epsilon);
-		NodeBase<T>* node_ptr = std::get<1>(res);
+		NodeBase<T>* node_ptr = res.leaf;
 		while(true){
 			node_ptr->ReduceLeaves();
 			node_ptr = node_ptr->parent;
@@ -46,13 +51,13 @@ public:
 				break;
 			}
 		}
-		return std::get<1>(res)->PopValue(std::get<2>(res));
+		return res.leaf->PopValue(res.index);
 	}
 
 	// Returns the closest value from the tree.
 	T GetClosest(T query, double epsilon){
 		auto res = GetClosestNode(query, epsilon);
-		return std::get<1>(res)->GetValue();
+		return res.leaf->GetValue();
 	}
 	// Mark one leaf as having been finished.
 	virtual void ReduceLeaves() = 0;
@@ -98,7 +103,7 @@ private:
 		assert(leaves_unused > 0);
 
 		double best_distance2 = DBL_MAX;
-		size_t best_index;
+		size_t best_index = 0;
 		for(size_t i=0; i<values.size(); i++){
 			if(!used[i]){
 				double dist2 = distance2(values[i],query);
@@ -108,7 +113,7 @@ private:
 				}
 			}
 		}
-		return std::make_tuple(best_distance2, this, best_index);
+		return {best_distance2, this, best_index};
 	}
 
 	std::vector<T> values;
@@ -147,13 +152,14 @@ private:
 		// Check on the side that is recommended by the median heuristic.
 		double diff = query.get(dimension) - median;
 		auto res1 = (diff<0) ? left->GetClosestNode(query, epsilon) : right->GetClosestNode(query, epsilon);
-		if(diff*diff*(1+epsilon)*(1+epsilon) > std::get<0>(res1) ){
+		double allowed_diff = diff*(1+epsilon);
+		if(allowed_diff * allowed_diff > res1.dist2 ){
 			return res1;
 		}
 
 		// Couldn't bail out early, so check on the other side and compare.
 		auto res2 = (diff<0) ? right->GetClosestNode(query, epsilon) : left->GetClosestNode(query, epsilon);
-		return (std::get<0>(res1) < std::get<0>(res2)) ? res1 : res2;
+		return (res1.dist2 < res2.dist2) ? res1 : res2;
 	}
 
 	std::unique_ptr<NodeBase<T> > left;
