@@ -37,9 +37,19 @@ SmartEnum(ColorChoice, Nearest, Sequential, Perlin);
 SmartEnum(LocationChoice, Random, Snaking, Preferred, Sequential);
 SmartEnum(PreferenceChoice, Location, Perlin);
 
+typedef std::function<int(int,int)> RandomInt;
+typedef std::function<std::vector<Color>(RandomInt,int)> PaletteGenerator;
+typedef std::function<std::vector<Point>(RandomInt,int,int)> InitialLocationGenerator;
+
+std::vector<Color> generate_uniform_palette(RandomInt, int n_colors);
+std::vector<Point> generate_random_start(RandomInt rand, int width, int height);
+
 class GrowthImage{
 public:
   GrowthImage(int width, int height, int seed);
+
+  void SetPaletteGenerator(PaletteGenerator func);
+  void SetInitialLocationGenerator(InitialLocationGenerator func);
 
   void GenerateUniformPalette(int colors);
   void Seed(int seed);
@@ -86,6 +96,9 @@ private:
   Color ChoosePerlinColor(Point loc);
 
 private:
+  PaletteGenerator palette_generator;
+  InitialLocationGenerator initial_location_generator;
+
   ColorChoice color_choice;
   LocationChoice location_choice;
   PreferenceChoice preference_choice;
@@ -105,6 +118,7 @@ private:
   int preferred_location_iterations;
 
   std::mt19937 rng;
+  RandomInt rand_int;
   PerlinNoise perlin;
 };
 

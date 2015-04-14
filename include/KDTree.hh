@@ -184,6 +184,10 @@ public:
     return root->GetClosest(query, epsilon);
   }
 
+  int GetNumLeaves(){
+    return root->GetNumLeaves();
+  }
+
 private:
   std::unique_ptr<NodeBase<T> > make_node(T* arr, size_t n, int start_dim = 0){
     assert(n>0);

@@ -10,13 +10,19 @@
 #include "common.hh"
 
 GrowthImage::GrowthImage(int width, int height, int seed)
-  : color_choice(ColorChoice::Nearest), location_choice(LocationChoice::Random),
+  : palette_generator(generate_uniform_palette),
+    initial_location_generator(generate_random_start),
+    color_choice(ColorChoice::Nearest), location_choice(LocationChoice::Random),
     preference_choice(PreferenceChoice::Location), epsilon(0),
     image(width,height), view(boost::gil::view(image)),
     previous_loc(-1,-1), preferred_location_iterations(10),
     rng(seed ? seed : time(0)), perlin(rng){
+
+  rand_int = [this](int a, int b){
+    return std::uniform_int_distribution<int>(a,b-1)(rng);
+  };
+
   Reset();
-  palette.GenerateUniformPalette(width*height);
 }
 
 void GrowthImage::Seed(int seed){
@@ -29,6 +35,10 @@ int GrowthImage::GetWidth(){
 
 int GrowthImage::GetHeight(){
   return image.height();
+}
+
+void GrowthImage::SetPaletteGenerator(PaletteGenerator func){
+  palette_generator = func;
 }
 
 void GrowthImage::SetColorChoice(ColorChoice c){
@@ -80,13 +90,18 @@ void GrowthImage::Reset(){
 }
 
 void GrowthImage::FirstIteration(){
-  Point start = {randint(rng,image.width()),
-                 randint(rng,image.height())};
-  frontier_vector.push_back(start);
-  frontier_set.insert(start);
+  auto points = initial_location_generator(rand_int, image.width(), image.height());
+  for(auto point : points){
+    frontier_vector.push_back(point);
+    frontier_set.insert(point);
+  }
 }
 
 bool GrowthImage::Iterate(){
+  if(!palette.ColorsRemaining()){
+    palette.SetPalette(palette_generator(rand_int, GetWidth() * GetHeight()));
+  }
+
   auto loc = ChooseLocation();
   auto color = ChooseColor(loc);
   view(loc.i,loc.j) = {color.r, color.g, color.b};
@@ -287,4 +302,35 @@ Color GrowthImage::ChoosePerlinColor(Point loc){
   auto result = perlin(loc.i,loc.j);
   double value = 255*(result+1)/2;
   return {value,value,value};
+}
+
+std::vector<Color> generate_uniform_palette(RandomInt, int n_colors){
+  assert(n_colors > 0);
+  assert(n_colors < (1<<24));
+
+  double dim_size = std::pow(n_colors,1.0/3.0);
+
+  std::vector<Color> colors;
+  colors.reserve(n_colors);
+  for(int i=0; i < n_colors; i++){
+    double val = i;
+    val /= dim_size;
+    double r = std::fmod(val,1);
+    val = int(val);
+    val /= dim_size;
+    double g = std::fmod(val,1);
+    val = int(val);
+    val /= dim_size;
+    double b = val;
+
+    colors.push_back({r*255,g*255,b*255});
+  }
+
+  return colors;
+}
+
+std::vector<Point> generate_random_start(RandomInt rand, int width, int height){
+  std::vector<Point> output;
+  output.push_back({rand(0,width), rand(0,height)});
+  return output;
 }

@@ -37,6 +37,9 @@ public:
   Color PopBack();
   Color PopRandom(std::mt19937& rng);
 
+  void SetPalette(std::vector<Color> colors);
+  int ColorsRemaining();
+
   void GenerateUniformPalette(int n_colors);
 private:
   std::unique_ptr<KDTree<Color> > colors;
