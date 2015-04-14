@@ -4,9 +4,9 @@
 #include <boost/gil/extension/io/png_dynamic_io.hpp>
 
 void GrowthImage::Save(const char* filepath){
-	boost::gil::png_write_view(filepath,boost::gil::const_view(image));
+  boost::gil::png_write_view(filepath,boost::gil::const_view(image));
 }
 
 void GrowthImage::Save(const std::string& filepath){
-	Save(filepath.c_str());
+  Save(filepath.c_str());
 }

@@ -40,9 +40,9 @@
       BOOST_PP_SEQ_FOR_EACH(SMART_ENUM_STRING_CASE,,                    \
                             BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))      \
     default:								\
-      throw boost::program_options::invalid_option_value                \
+        throw boost::program_options::invalid_option_value              \
         ("EnumName must be one of " #__VA_ARGS__);                      \
-        }                                                               \
+    }                                                                   \
   }                                                                     \
                                                                         \
   friend std::ostream& operator<<(std::ostream& out, const EnumName& e){ \
