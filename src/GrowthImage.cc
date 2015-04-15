@@ -139,7 +139,7 @@ Point GrowthImage::ChooseLocation(){
 }
 
 Point GrowthImage::ChooseFrontierLocation(){
-  return point_tracker.PopFrontierAtIndex(
+  return point_tracker.FrontierAtIndex(
     rand_int(0, point_tracker.FrontierSize()));
 }
 
@@ -161,7 +161,7 @@ Point GrowthImage::ChoosePreferredLocation(int n_check){
     }
   }
 
-  return point_tracker.PopFrontierAtIndex(best_index);
+  return point_tracker.FrontierAtIndex(best_index);
 }
 
 Point GrowthImage::ChooseSequentialLocation(){
