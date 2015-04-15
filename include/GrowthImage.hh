@@ -13,28 +13,11 @@
 #include "SmartEnum.hh"
 #include "UniquePalette.hh"
 #include "PerlinNoise.hh"
-
-struct Point{
-  Point(int i=-1, int j=-1) : i(i), j(j), preference(0) {}
-  int i,j;
-  double preference;
-
-  bool operator==(const Point& p) const {
-    return p.i==i && p.j==j;
-  }
-};
-
-namespace std{
-  template<>
-  struct hash<Point>{
-    size_t operator()(const Point& p) const{
-      return 1000*p.i + p.j;
-    }
-  };
-}
+#include "Point.hh"
+#include "PointTracker.hh"
 
 SmartEnum(ColorChoice, Nearest, Sequential, Perlin);
-SmartEnum(LocationChoice, Random, Snaking, Preferred, Sequential);
+SmartEnum(LocationChoice, Random, Preferred, Sequential);
 SmartEnum(PreferenceChoice, Location, Perlin);
 
 typedef std::function<int(int,int)> RandomInt;
@@ -67,7 +50,7 @@ public:
   void Reset();
   bool Iterate();
   void IterateUntilDone();
-  void ExtendFrontier(Point loc, Color color);
+  void ExtendFrontier(Point loc);
 
   void Save(const char* filepath);
   void Save(const std::string& filepath);
@@ -82,13 +65,12 @@ private:
 
   Point ChooseLocation();
   Point ChooseFrontierLocation();
-  Point ChooseSnakingLocation();
   Point ChooseSequentialLocation();
   Point ChoosePreferredLocation(int n_check);
 
-  double ChoosePreference(Point p, Color color);
-  double ChoosePreferenceLocation(Point p, Color color);
-  double ChoosePreferencePerlin(Point p, Color color);
+  double ChoosePreference(Point p);
+  double ChoosePreferenceLocation(Point p);
+  double ChoosePreferencePerlin(Point p);
 
   Color ChooseColor(Point loc);
   Color ChooseNearestColor(Point loc);
@@ -99,6 +81,8 @@ private:
   PaletteGenerator palette_generator;
   InitialLocationGenerator initial_location_generator;
 
+  PointTracker point_tracker;
+
   ColorChoice color_choice;
   LocationChoice location_choice;
   PreferenceChoice preference_choice;
@@ -108,10 +92,6 @@ private:
 
   boost::gil::rgb8_image_t image;
   boost::gil::rgb8_image_t::view_t view;
-
-  std::vector<std::vector<bool> > filled;
-  std::unordered_set<Point> frontier_set;
-  std::vector<Point> frontier_vector;
 
   Point previous_loc;
   Point goal_loc;

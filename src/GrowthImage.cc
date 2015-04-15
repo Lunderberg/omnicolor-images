@@ -1,17 +1,19 @@
 #include "GrowthImage.hh"
 
-#include <iostream>
 
+#include <algorithm>
 #include <cassert>
 #include <cfloat>
-#include <algorithm>
+#include <cmath>
 #include <ctime>
+#include <iostream>
 
 #include "common.hh"
 
 GrowthImage::GrowthImage(int width, int height, int seed)
   : palette_generator(generate_uniform_palette),
     initial_location_generator(generate_random_start),
+    point_tracker(width, height),
     color_choice(ColorChoice::Nearest), location_choice(LocationChoice::Random),
     preference_choice(PreferenceChoice::Location), epsilon(0),
     image(width,height), view(boost::gil::view(image)),
@@ -74,17 +76,7 @@ double GrowthImage::GetEpsilon(){
 }
 
 void GrowthImage::Reset(){
-  filled.clear();
-  filled.resize(image.width());
-  for(int i=0; i<image.width(); i++){
-    filled[i].resize(image.height());
-    for(int j=0; j<image.height(); j++){
-      filled[i][j] = false;
-    }
-  }
-
-  frontier_vector.clear();
-  frontier_set.clear();
+  point_tracker.Clear();
 
   FirstIteration();
 }
@@ -92,8 +84,7 @@ void GrowthImage::Reset(){
 void GrowthImage::FirstIteration(){
   auto points = initial_location_generator(rand_int, image.width(), image.height());
   for(auto point : points){
-    frontier_vector.push_back(point);
-    frontier_set.insert(point);
+    point_tracker.AddToFrontier(point);
   }
 }
 
@@ -106,40 +97,26 @@ bool GrowthImage::Iterate(){
   auto color = ChooseColor(loc);
   view(loc.i,loc.j) = {color.r, color.g, color.b};
 
-  ExtendFrontier(loc,color);
-  frontier_set.erase(loc);
+  point_tracker.Fill(loc);
 
 
   previous_loc = loc;
 
 
-  return frontier_set.size();
+  return point_tracker.FrontierSize();
 }
 
-void GrowthImage::ExtendFrontier(Point loc, Color color){
-  filled[loc.i][loc.j] = true;
-  for(int di=-1; di<=1; di++){
-    for(int dj=-1; dj<=1; dj++){
-      Point p(loc.i+di, loc.j+dj);
-      if(p.i>=0 && p.i<image.width() &&
-         p.j>=0 && p.j<image.height() &&
-         !frontier_set.count(p) &&
-         !filled[p.i][p.j]){
-        p.preference = ChoosePreference(p,color);
-        frontier_vector.push_back(p);
-        frontier_set.insert(p);
-      }
-    }
-  }
+void GrowthImage::ExtendFrontier(Point loc){
+  point_tracker.Fill(loc);
 }
 
 void GrowthImage::IterateUntilDone(){
   int body_size = 0;
-  while(frontier_set.size()){
+  while(point_tracker.FrontierSize()){
     if(body_size % 100000 == 0){
       std::cout << "\r                                                   \r"
-                << "Body: " << body_size << "\tFrontier: " << frontier_set.size()
-                << "\tUnexplored: " << image.height()*image.width() - body_size - frontier_set.size()
+                << "Body: " << body_size << "\tFrontier: " << point_tracker.FrontierSize()
+                << "\tUnexplored: " << image.height()*image.width() - body_size - point_tracker.FrontierSize()
                 << std::flush;
     }
     Iterate();
@@ -152,8 +129,6 @@ Point GrowthImage::ChooseLocation(){
   switch(location_choice){
   case LocationChoice::Random:
     return ChooseFrontierLocation();
-  case LocationChoice::Snaking:
-    return ChooseSnakingLocation();
   case LocationChoice::Sequential:
     return ChooseSequentialLocation();
   case LocationChoice::Preferred:
@@ -164,24 +139,29 @@ Point GrowthImage::ChooseLocation(){
 }
 
 Point GrowthImage::ChooseFrontierLocation(){
-  auto value = poprandom(rng,frontier_vector);
-  return value;
+  return point_tracker.PopFrontierAtIndex(
+    rand_int(0, point_tracker.FrontierSize()));
 }
 
 Point GrowthImage::ChoosePreferredLocation(int n_check){
   assert(n_check>0);
-  int best_index;
+  int best_index = 0;
   double best_preference = -DBL_MAX;
   for(int i=0; i<n_check; i++){
-    int index = randint(rng,frontier_vector.size());
-    if(frontier_vector[index].preference > best_preference){
-      best_preference = frontier_vector[index].preference;
+    int index = randint(rng, point_tracker.FrontierSize() );
+    Point& p = point_tracker.FrontierAtIndex(i);
+
+    if(std::isnan(p.preference)){
+      p.preference = ChoosePreference(p);
+    }
+
+    if(p.preference > best_preference){
+      best_preference = p.preference;
       best_index = index;
     }
   }
 
-  auto value = popanywhere(frontier_vector,best_index);
-  return value;
+  return point_tracker.PopFrontierAtIndex(best_index);
 }
 
 Point GrowthImage::ChooseSequentialLocation(){
@@ -196,19 +176,19 @@ Point GrowthImage::ChooseSequentialLocation(){
   return output;
 }
 
-double GrowthImage::ChoosePreference(Point p, Color c){
+double GrowthImage::ChoosePreference(Point p){
   switch(preference_choice){
   case PreferenceChoice::Location:
-    return ChoosePreferenceLocation(p,c);
+    return ChoosePreferenceLocation(p);
   case PreferenceChoice::Perlin:
-    return ChoosePreferencePerlin(p,c);
+    return ChoosePreferencePerlin(p);
   default:
     assert(false);
   }
 }
 
-double GrowthImage::ChoosePreferenceLocation(Point p, Color){
-  if(goal_loc.i == -1 || filled[goal_loc.i][goal_loc.j]){
+double GrowthImage::ChoosePreferenceLocation(Point p){
+  if(goal_loc.i == -1 || point_tracker.IsFilled(goal_loc.i,goal_loc.j)){
     goal_loc = {randint(rng,image.width()),
                 randint(rng,image.height())};
   }
@@ -218,34 +198,8 @@ double GrowthImage::ChoosePreferenceLocation(Point p, Color){
   return -(di*di + dj*dj);
 }
 
-double GrowthImage::ChoosePreferencePerlin(Point p, Color){
+double GrowthImage::ChoosePreferencePerlin(Point p){
   return perlin(p.i, p.j);
-}
-
-Point GrowthImage::ChooseSnakingLocation(){
-  std::vector<Point> free_locs;
-  for(int i=0; i<4; i++){
-    int di = (i%2)*2 - 1;
-    int dj = (i/2)*2 - 1;
-    Point new_loc = Point(previous_loc.i+di,previous_loc.j+dj);
-    if(new_loc.i>=0 && new_loc.i<image.width() &&
-       new_loc.j>=0 && new_loc.j<image.height() &&
-       !filled[new_loc.i][new_loc.j]){
-      free_locs.push_back(new_loc);
-    }
-  }
-  if(free_locs.size()){
-    Point next_loc = free_locs[randint(rng,free_locs.size())];
-    frontier_vector.erase(std::remove_if(frontier_vector.begin(),frontier_vector.end(),
-                                         [&next_loc](const Point& o){return o==next_loc;}),
-                          frontier_vector.end());
-    frontier_set.erase(next_loc);
-    return next_loc;
-  } else {
-    auto value = poprandom(rng,frontier_vector);
-    frontier_set.erase(value);
-    return value;
-  }
 }
 
 Color GrowthImage::ChooseColor(Point loc){
@@ -276,7 +230,7 @@ Color GrowthImage::ChooseNearestColor(Point loc){
       Point p(loc.i+di,loc.j+dj);
       if(p.i>=0 && p.i<image.width() &&
          p.j>=0 && p.j<image.height() &&
-         filled[p.i][p.j]){
+         point_tracker.IsFilled(p.i,p.j)){
         ave_r += view(p.i,p.j)[0];
         ave_g += view(p.i,p.j)[1];
         ave_b += view(p.i,p.j)[2];
