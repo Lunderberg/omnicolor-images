@@ -10,6 +10,7 @@ using std::endl;
 #include <boost/gil/gil_all.hpp>
 #include <boost/program_options.hpp>
 
+#include "CompiledAlgorithms.hh"
 #include "GrowthImage.hh"
 
 void MakeVideo(GrowthImage& g, std::string output, int iterations_per_frame){
@@ -114,6 +115,25 @@ int main(int argc, char** argv){
   }
 
   GrowthImage g(width,height,seed);
+
+  switch(location_choice){
+  case LocationChoice::Random:
+    g.SetLocationGenerator(generate_frontier_location);
+    break;
+  case LocationChoice::Sequential:
+    g.SetLocationGenerator(generate_sequential_location(width,height));
+    break;
+  case LocationChoice::Preferred:
+    g.SetLocationGenerator(generate_preferred_location(preferred_location_iterations));
+    break;
+  }
+
+  switch(preference_choice){
+  case PreferenceChoice::Location:
+    g.SetPreferenceGenerator(generate_location_preference());
+    break;
+  }
+
   g.SetColorChoice(color_choice);
   g.SetLocationChoice(location_choice);
   g.SetPreferenceChoice(preference_choice);

@@ -10,11 +10,11 @@
 
 #include <boost/gil/gil_all.hpp>
 
-#include "SmartEnum.hh"
-#include "UniquePalette.hh"
 #include "PerlinNoise.hh"
 #include "Point.hh"
 #include "PointTracker.hh"
+#include "SmartEnum.hh"
+#include "UniquePalette.hh"
 
 SmartEnum(ColorChoice, Nearest, Sequential, Perlin);
 SmartEnum(LocationChoice, Random, Preferred, Sequential);
@@ -23,9 +23,8 @@ SmartEnum(PreferenceChoice, Location, Perlin);
 typedef std::function<int(int,int)> RandomInt;
 typedef std::function<std::vector<Color>(RandomInt,int)> PaletteGenerator;
 typedef std::function<std::vector<Point>(RandomInt,int,int)> InitialLocationGenerator;
-
-std::vector<Color> generate_uniform_palette(RandomInt, int n_colors);
-std::vector<Point> generate_random_start(RandomInt rand, int width, int height);
+typedef std::function<Point(RandomInt,const PointTracker&)> LocationGenerator;
+typedef std::function<double(RandomInt,Point,const PointTracker&)> PreferenceGenerator;
 
 class GrowthImage{
 public:
@@ -33,6 +32,8 @@ public:
 
   void SetPaletteGenerator(PaletteGenerator func);
   void SetInitialLocationGenerator(InitialLocationGenerator func);
+  void SetLocationGenerator(LocationGenerator func);
+  void SetPreferenceGenerator(PreferenceGenerator func);
 
   void GenerateUniformPalette(int colors);
   void Seed(int seed);
@@ -80,6 +81,8 @@ private:
 private:
   PaletteGenerator palette_generator;
   InitialLocationGenerator initial_location_generator;
+  LocationGenerator location_generator;
+  PreferenceGenerator preference_generator;
 
   PointTracker point_tracker;
 

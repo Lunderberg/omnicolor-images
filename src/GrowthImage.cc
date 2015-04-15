@@ -9,10 +9,13 @@
 #include <iostream>
 
 #include "common.hh"
+#include "CompiledAlgorithms.hh"
 
 GrowthImage::GrowthImage(int width, int height, int seed)
   : palette_generator(generate_uniform_palette),
     initial_location_generator(generate_random_start),
+    location_generator(generate_frontier_location),
+    preference_generator(generate_null_preference),
     point_tracker(width, height),
     color_choice(ColorChoice::Nearest), location_choice(LocationChoice::Random),
     preference_choice(PreferenceChoice::Location), epsilon(0),
@@ -41,6 +44,18 @@ int GrowthImage::GetHeight(){
 
 void GrowthImage::SetPaletteGenerator(PaletteGenerator func){
   palette_generator = func;
+}
+
+void GrowthImage::SetInitialLocationGenerator(InitialLocationGenerator func){
+  initial_location_generator = func;
+}
+
+void GrowthImage::SetLocationGenerator(LocationGenerator func){
+  location_generator = func;
+}
+
+void GrowthImage::SetPreferenceGenerator(PreferenceGenerator func){
+  preference_generator = func;
 }
 
 void GrowthImage::SetColorChoice(ColorChoice c){
@@ -97,8 +112,9 @@ bool GrowthImage::Iterate(){
   auto color = ChooseColor(loc);
   view(loc.i,loc.j) = {color.r, color.g, color.b};
 
-  point_tracker.Fill(loc);
-
+  point_tracker.Fill(loc,
+                     std::bind(std::ref(preference_generator),
+                               rand_int, std::placeholders::_1, std::cref(point_tracker)));
 
   previous_loc = loc;
 
@@ -107,7 +123,9 @@ bool GrowthImage::Iterate(){
 }
 
 void GrowthImage::ExtendFrontier(Point loc){
-  point_tracker.Fill(loc);
+  point_tracker.Fill(loc,
+                     std::bind(std::ref(preference_generator),
+                               rand_int, std::placeholders::_1, std::cref(point_tracker)));
 }
 
 void GrowthImage::IterateUntilDone(){
@@ -126,16 +144,7 @@ void GrowthImage::IterateUntilDone(){
 }
 
 Point GrowthImage::ChooseLocation(){
-  switch(location_choice){
-  case LocationChoice::Random:
-    return ChooseFrontierLocation();
-  case LocationChoice::Sequential:
-    return ChooseSequentialLocation();
-  case LocationChoice::Preferred:
-    return ChoosePreferredLocation(preferred_location_iterations);
-  default:
-    assert(false);
-  }
+  return location_generator(rand_int, point_tracker);
 }
 
 Point GrowthImage::ChooseFrontierLocation(){
@@ -149,7 +158,7 @@ Point GrowthImage::ChoosePreferredLocation(int n_check){
   double best_preference = -DBL_MAX;
   for(int i=0; i<n_check; i++){
     int index = randint(rng, point_tracker.FrontierSize() );
-    Point& p = point_tracker.FrontierAtIndex(i);
+    Point& p = point_tracker.FrontierAtIndex(index);
 
     if(std::isnan(p.preference)){
       p.preference = ChoosePreference(p);
@@ -256,35 +265,4 @@ Color GrowthImage::ChoosePerlinColor(Point loc){
   auto result = perlin(loc.i,loc.j);
   double value = 255*(result+1)/2;
   return {value,value,value};
-}
-
-std::vector<Color> generate_uniform_palette(RandomInt, int n_colors){
-  assert(n_colors > 0);
-  assert(n_colors < (1<<24));
-
-  double dim_size = std::pow(n_colors,1.0/3.0);
-
-  std::vector<Color> colors;
-  colors.reserve(n_colors);
-  for(int i=0; i < n_colors; i++){
-    double val = i;
-    val /= dim_size;
-    double r = std::fmod(val,1);
-    val = int(val);
-    val /= dim_size;
-    double g = std::fmod(val,1);
-    val = int(val);
-    val /= dim_size;
-    double b = val;
-
-    colors.push_back({r*255,g*255,b*255});
-  }
-
-  return colors;
-}
-
-std::vector<Point> generate_random_start(RandomInt rand, int width, int height){
-  std::vector<Point> output;
-  output.push_back({rand(0,width), rand(0,height)});
-  return output;
 }
