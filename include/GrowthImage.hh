@@ -35,13 +35,7 @@ public:
   void SetLocationGenerator(LocationGenerator func);
   void SetPreferenceGenerator(PreferenceGenerator func);
 
-  void GenerateUniformPalette(int colors);
   void Seed(int seed);
-
-  void SetColorChoice(ColorChoice c);
-  void SetLocationChoice(LocationChoice c);
-  void SetPreferenceChoice(PreferenceChoice c);
-  void SetPreferredLocationIterations(int n);
 
   void SetPerlinOctaves(int octaves);
   void SetPerlinGridSize(double grid_size);
@@ -51,7 +45,6 @@ public:
   void Reset();
   bool Iterate();
   void IterateUntilDone();
-  void ExtendFrontier(Point loc);
 
   void Save(const char* filepath);
   void Save(const std::string& filepath);
@@ -61,16 +54,14 @@ public:
 
   double GetEpsilon();
 
+  std::mt19937& GetRNG() { return rng; }
+
 private:
   void FirstIteration();
 
   Point ChooseLocation();
-  Point ChooseFrontierLocation();
-  Point ChooseSequentialLocation();
-  Point ChoosePreferredLocation(int n_check);
 
   double ChoosePreference(Point p);
-  double ChoosePreferenceLocation(Point p);
   double ChoosePreferencePerlin(Point p);
 
   Color ChooseColor(Point loc);

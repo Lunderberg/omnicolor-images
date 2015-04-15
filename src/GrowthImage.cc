@@ -58,30 +58,6 @@ void GrowthImage::SetPreferenceGenerator(PreferenceGenerator func){
   preference_generator = func;
 }
 
-void GrowthImage::SetColorChoice(ColorChoice c){
-  color_choice = c;
-}
-
-void GrowthImage::SetLocationChoice(LocationChoice c){
-  location_choice = c;
-}
-
-void GrowthImage::SetPreferenceChoice(PreferenceChoice c){
-  preference_choice = c;
-}
-
-void GrowthImage::SetPerlinOctaves(int octaves){
-  perlin.SetOctaves(octaves);
-}
-
-void GrowthImage::SetPerlinGridSize(double grid_size){
-  perlin.SetGridSize(grid_size);
-}
-
-void GrowthImage::SetPreferredLocationIterations(int n){
-  preferred_location_iterations = n;
-}
-
 void GrowthImage::SetEpsilon(double epsilon){
   this->epsilon = epsilon;
 }
@@ -122,12 +98,6 @@ bool GrowthImage::Iterate(){
   return point_tracker.FrontierSize();
 }
 
-void GrowthImage::ExtendFrontier(Point loc){
-  point_tracker.Fill(loc,
-                     std::bind(std::ref(preference_generator),
-                               rand_int, std::placeholders::_1, std::cref(point_tracker)));
-}
-
 void GrowthImage::IterateUntilDone(){
   int body_size = 0;
   while(point_tracker.FrontierSize()){
@@ -145,70 +115,6 @@ void GrowthImage::IterateUntilDone(){
 
 Point GrowthImage::ChooseLocation(){
   return location_generator(rand_int, point_tracker);
-}
-
-Point GrowthImage::ChooseFrontierLocation(){
-  return point_tracker.FrontierAtIndex(
-    rand_int(0, point_tracker.FrontierSize()));
-}
-
-Point GrowthImage::ChoosePreferredLocation(int n_check){
-  assert(n_check>0);
-  int best_index = 0;
-  double best_preference = -DBL_MAX;
-  for(int i=0; i<n_check; i++){
-    int index = randint(rng, point_tracker.FrontierSize() );
-    Point& p = point_tracker.FrontierAtIndex(index);
-
-    if(std::isnan(p.preference)){
-      p.preference = ChoosePreference(p);
-    }
-
-    if(p.preference > best_preference){
-      best_preference = p.preference;
-      best_index = index;
-    }
-  }
-
-  return point_tracker.FrontierAtIndex(best_index);
-}
-
-Point GrowthImage::ChooseSequentialLocation(){
-  Point output;
-  if(previous_loc.i == -1){
-    output = {0,0};
-  } else if (previous_loc.i == image.width()-1){
-    output = {0,previous_loc.j+1};
-  } else {
-    output = {previous_loc.i+1,previous_loc.j};
-  }
-  return output;
-}
-
-double GrowthImage::ChoosePreference(Point p){
-  switch(preference_choice){
-  case PreferenceChoice::Location:
-    return ChoosePreferenceLocation(p);
-  case PreferenceChoice::Perlin:
-    return ChoosePreferencePerlin(p);
-  default:
-    assert(false);
-  }
-}
-
-double GrowthImage::ChoosePreferenceLocation(Point p){
-  if(goal_loc.i == -1 || point_tracker.IsFilled(goal_loc.i,goal_loc.j)){
-    goal_loc = {randint(rng,image.width()),
-                randint(rng,image.height())};
-  }
-
-  double di = p.i - goal_loc.i;
-  double dj = p.j - goal_loc.j;
-  return -(di*di + dj*dj);
-}
-
-double GrowthImage::ChoosePreferencePerlin(Point p){
-  return perlin(p.i, p.j);
 }
 
 Color GrowthImage::ChooseColor(Point loc){

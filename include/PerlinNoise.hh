@@ -9,7 +9,7 @@
 // Creates 2-d Perlin noise
 class PerlinNoise{
 public:
-  PerlinNoise(std::mt19937 rng);
+  PerlinNoise(std::mt19937& rng);
   double operator()(double x, double y);
   double operator()(GVector<2> p);
 

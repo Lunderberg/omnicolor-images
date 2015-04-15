@@ -132,16 +132,14 @@ int main(int argc, char** argv){
   case PreferenceChoice::Location:
     g.SetPreferenceGenerator(generate_location_preference());
     break;
+  case PreferenceChoice::Perlin:
+    g.SetPreferenceGenerator(generate_perlin_preference(perlin_grid_size,
+                                                        perlin_octaves,
+                                                        g.GetRNG()));
+    break;
   }
 
-  g.SetColorChoice(color_choice);
-  g.SetLocationChoice(location_choice);
-  g.SetPreferenceChoice(preference_choice);
-  g.SetPreferredLocationIterations(preferred_location_iterations);
   g.SetEpsilon(epsilon);
-
-  g.SetPerlinOctaves(perlin_octaves);
-  g.SetPerlinGridSize(perlin_grid_size);
 
   if(vm.count("video")){
     MakeVideo(g, output, iterations_per_frame);

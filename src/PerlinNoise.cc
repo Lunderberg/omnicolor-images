@@ -6,7 +6,7 @@
 #include <iostream>
 using namespace std;
 
-PerlinNoise::PerlinNoise(std::mt19937 rng) : octaves(1), grid_size(1){
+PerlinNoise::PerlinNoise(std::mt19937& rng) : octaves(1), grid_size(1){
   std::uniform_real_distribution<> uniform_theta(0,2*3.1415926535);
 
   for(auto& p : gradients){

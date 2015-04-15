@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <random>
 #include <vector>
 
 #include "Color.hh"
@@ -38,9 +39,24 @@ double generate_null_preference(RandomInt, Point p, const PointTracker& point_tr
 
 class generate_location_preference{
 public:
-  double operator()(RandomInt, Point p, const PointTracker& point_tracker);
+  double operator()(RandomInt rand, Point p, const PointTracker& point_tracker);
 private:
   Point goal_loc;
+};
+
+class generate_perlin_preference{
+public:
+  generate_perlin_preference(double grid_size, int octaves, std::mt19937& rng)
+    : perlin(rng) {
+    perlin.SetGridSize(grid_size);
+    perlin.SetOctaves(octaves);
+  }
+
+  double operator()(RandomInt, Point p, const PointTracker&){
+    return perlin(p.i, p.j);
+  }
+private:
+  PerlinNoise perlin;
 };
 
 #endif /* _COMPILEDALGORITHMS_H_ */
