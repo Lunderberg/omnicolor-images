@@ -17,17 +17,13 @@ GrowthImage::GrowthImage(int width, int height, int seed)
     location_generator(generate_frontier_location),
     preference_generator(generate_null_preference),
     point_tracker(width, height),
-    color_choice(ColorChoice::Nearest), location_choice(LocationChoice::Random),
-    preference_choice(PreferenceChoice::Location), epsilon(0),
+    epsilon(0),
     image(width,height), view(boost::gil::view(image)),
-    previous_loc(-1,-1), preferred_location_iterations(10),
-    rng(seed ? seed : time(0)), perlin(rng){
+    rng(seed ? seed : time(0)) {
 
   rand_int = [this](int a, int b){
     return std::uniform_int_distribution<int>(a,b-1)(rng);
   };
-
-  Reset();
 }
 
 void GrowthImage::Seed(int seed){
@@ -68,8 +64,6 @@ double GrowthImage::GetEpsilon(){
 
 void GrowthImage::Reset(){
   point_tracker.Clear();
-
-  FirstIteration();
 }
 
 void GrowthImage::FirstIteration(){
@@ -83,6 +77,9 @@ bool GrowthImage::Iterate(){
   if(!palette.ColorsRemaining()){
     palette.SetPalette(palette_generator(rand_int, GetWidth() * GetHeight()));
   }
+  if(!point_tracker.FrontierSize()){
+    FirstIteration();
+  }
 
   auto loc = ChooseLocation();
   auto color = ChooseColor(loc);
@@ -92,22 +89,18 @@ bool GrowthImage::Iterate(){
                      std::bind(std::ref(preference_generator),
                                rand_int, std::placeholders::_1, std::cref(point_tracker)));
 
-  previous_loc = loc;
-
-
   return point_tracker.FrontierSize();
 }
 
 void GrowthImage::IterateUntilDone(){
   int body_size = 0;
-  while(point_tracker.FrontierSize()){
+  while(Iterate()){
     if(body_size % 100000 == 0){
       std::cout << "\r                                                   \r"
                 << "Body: " << body_size << "\tFrontier: " << point_tracker.FrontierSize()
                 << "\tUnexplored: " << image.height()*image.width() - body_size - point_tracker.FrontierSize()
                 << std::flush;
     }
-    Iterate();
     body_size++;
   }
   std::cout << std::endl;
@@ -118,23 +111,6 @@ Point GrowthImage::ChooseLocation(){
 }
 
 Color GrowthImage::ChooseColor(Point loc){
-  switch(color_choice){
-  case ColorChoice::Nearest:
-    return ChooseNearestColor(loc);
-  case ColorChoice::Sequential:
-    return ChooseSequentialColor(loc);
-  case ColorChoice::Perlin:
-    return ChoosePerlinColor(loc);
-  default:
-    assert(false);
-  }
-}
-
-Color GrowthImage::ChooseSequentialColor(Point){
-  return palette.PopBack();
-}
-
-Color GrowthImage::ChooseNearestColor(Point loc){
   // Find the average surrounding color.
   double ave_r = 0;
   double ave_g = 0;
@@ -165,10 +141,4 @@ Color GrowthImage::ChooseNearestColor(Point loc){
     // No neighbors, so take a random color.
     return palette.PopRandom(rng);
   }
-}
-
-Color GrowthImage::ChoosePerlinColor(Point loc){
-  auto result = perlin(loc.i,loc.j);
-  double value = 255*(result+1)/2;
-  return {value,value,value};
 }

@@ -16,10 +16,6 @@
 #include "SmartEnum.hh"
 #include "UniquePalette.hh"
 
-SmartEnum(ColorChoice, Nearest, Sequential, Perlin);
-SmartEnum(LocationChoice, Random, Preferred, Sequential);
-SmartEnum(PreferenceChoice, Location, Perlin);
-
 typedef std::function<int(int,int)> RandomInt;
 typedef std::function<std::vector<Color>(RandomInt,int)> PaletteGenerator;
 typedef std::function<std::vector<Point>(RandomInt,int,int)> InitialLocationGenerator;
@@ -60,14 +56,7 @@ private:
   void FirstIteration();
 
   Point ChooseLocation();
-
-  double ChoosePreference(Point p);
-  double ChoosePreferencePerlin(Point p);
-
   Color ChooseColor(Point loc);
-  Color ChooseNearestColor(Point loc);
-  Color ChooseSequentialColor(Point loc);
-  Color ChoosePerlinColor(Point loc);
 
 private:
   PaletteGenerator palette_generator;
@@ -77,9 +66,6 @@ private:
 
   PointTracker point_tracker;
 
-  ColorChoice color_choice;
-  LocationChoice location_choice;
-  PreferenceChoice preference_choice;
   double epsilon;
 
   UniquePalette palette;
@@ -87,13 +73,8 @@ private:
   boost::gil::rgb8_image_t image;
   boost::gil::rgb8_image_t::view_t view;
 
-  Point previous_loc;
-  Point goal_loc;
-  int preferred_location_iterations;
-
   std::mt19937 rng;
   RandomInt rand_int;
-  PerlinNoise perlin;
 };
 
 #endif /* _GROWTHIMAGE_H_ */

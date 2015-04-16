@@ -56,11 +56,13 @@ void MakeImage(GrowthImage& g, std::string output){
   g.Save(output);
 }
 
+SmartEnum(LocationChoice, Random, Preferred, Sequential);
+SmartEnum(PreferenceChoice, Location, Perlin);
+
 int main(int argc, char** argv){
   int height, width;
   double epsilon;
   int iterations_per_frame;
-  ColorChoice color_choice;
   LocationChoice location_choice;
   PreferenceChoice preference_choice;
   int seed;
@@ -79,8 +81,6 @@ int main(int argc, char** argv){
     ("video,v", "Render as a video instead of a still image")
     ("iter-per-frame", po::value(&iterations_per_frame)->default_value(1000),
      "Iterations between each frame")
-    ("color,c", po::value(&color_choice)->default_value(ColorChoice::Nearest),
-     "Algorithm for selecting color")
     ("location,l", po::value(&location_choice)->default_value(LocationChoice::Random),
      "Algorithm for selecting the next pixel to fill")
     ("preference,p", po::value(&preference_choice)->default_value(PreferenceChoice::Location),
