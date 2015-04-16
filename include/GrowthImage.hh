@@ -21,6 +21,7 @@ typedef std::function<std::vector<Color>(RandomInt,int)> PaletteGenerator;
 typedef std::function<std::vector<Point>(RandomInt,int,int)> InitialLocationGenerator;
 typedef std::function<Point(RandomInt,const PointTracker&)> LocationGenerator;
 typedef std::function<double(RandomInt,Point,const PointTracker&)> PreferenceGenerator;
+typedef std::function<Color(RandomInt,std::vector<Color>,Point)> TargetColorGenerator;
 
 class GrowthImage{
 public:
@@ -30,6 +31,7 @@ public:
   void SetInitialLocationGenerator(InitialLocationGenerator func);
   void SetLocationGenerator(LocationGenerator func);
   void SetPreferenceGenerator(PreferenceGenerator func);
+  void SetTargetColorGenerator(TargetColorGenerator func);
 
   void Seed(int seed);
 
@@ -63,6 +65,7 @@ private:
   InitialLocationGenerator initial_location_generator;
   LocationGenerator location_generator;
   PreferenceGenerator preference_generator;
+  TargetColorGenerator target_color_generator;
 
   PointTracker point_tracker;
 

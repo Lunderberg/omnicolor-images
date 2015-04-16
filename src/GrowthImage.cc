@@ -16,6 +16,7 @@ GrowthImage::GrowthImage(int width, int height, int seed)
     initial_location_generator(generate_random_start),
     location_generator(generate_frontier_location),
     preference_generator(generate_null_preference),
+    target_color_generator(generate_average_color),
     point_tracker(width, height),
     epsilon(0),
     image(width,height), view(boost::gil::view(image)),
@@ -52,6 +53,10 @@ void GrowthImage::SetLocationGenerator(LocationGenerator func){
 
 void GrowthImage::SetPreferenceGenerator(PreferenceGenerator func){
   preference_generator = func;
+}
+
+void GrowthImage::SetTargetColorGenerator(TargetColorGenerator func){
+  target_color_generator = func;
 }
 
 void GrowthImage::SetEpsilon(double epsilon){
@@ -112,33 +117,21 @@ Point GrowthImage::ChooseLocation(){
 
 Color GrowthImage::ChooseColor(Point loc){
   // Find the average surrounding color.
-  double ave_r = 0;
-  double ave_g = 0;
-  double ave_b = 0;
-  int count = 0;
+  std::vector<Color> neighbors;
   for(int di=-1; di<=1; di++){
     for(int dj=-1; dj<=1; dj++){
       Point p(loc.i+di,loc.j+dj);
       if(p.i>=0 && p.i<image.width() &&
          p.j>=0 && p.j<image.height() &&
          point_tracker.IsFilled(p.i,p.j)){
-        ave_r += view(p.i,p.j)[0];
-        ave_g += view(p.i,p.j)[1];
-        ave_b += view(p.i,p.j)[2];
-        count++;
+        neighbors.push_back({
+            view(p.i,p.j)[0],
+              view(p.i,p.j)[1],
+              view(p.i,p.j)[2]});
       }
     }
   }
 
-  if(count){
-    // Neighbors exist, find the closest color.
-    ave_r /= count;
-    ave_g /= count;
-    ave_b /= count;
-    return palette.PopClosest({ave_r,ave_g,ave_b}, epsilon);
-
-  } else {
-    // No neighbors, so take a random color.
-    return palette.PopRandom(rng);
-  }
+  Color target = target_color_generator(rand_int, std::move(neighbors), loc);
+  return palette.PopClosest(target, epsilon);
 }

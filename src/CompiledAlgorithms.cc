@@ -80,3 +80,16 @@ double generate_location_preference::operator()(RandomInt rand, Point p, const P
   return -(di*di + dj*dj);
 }
 
+Color generate_average_color(RandomInt rand, std::vector<Color> neighbors, Point){
+  if(neighbors.size()){
+    Color output(0,0,0);
+    for(auto col : neighbors){
+      output.r += col.r/neighbors.size();
+      output.g += col.g/neighbors.size();
+      output.b += col.b/neighbors.size();
+    }
+    return output;
+  } else {
+    return {rand(0,255), rand(0,255), rand(0,255)};
+  }
+}

@@ -59,4 +59,6 @@ private:
   PerlinNoise perlin;
 };
 
+Color generate_average_color(RandomInt rand, std::vector<Color> neighbors, Point p);
+
 #endif /* _COMPILEDALGORITHMS_H_ */
