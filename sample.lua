@@ -1,7 +1,7 @@
-width = 128
-height = 128
--- width = 1920
--- height = 1080
+-- width = 128
+-- height = 128
+width = 1920
+height = 1080
 epsilon = 5
 seed = 0
 
