@@ -9,7 +9,7 @@ struct Color{
   unsigned char r,g,b;
 
   enum {dimensions = 3};
-  int get(int n){
+  int get(int n) const{
     switch(n){
     case 0:
       return r;
@@ -21,6 +21,10 @@ struct Color{
       assert(false);
     }
   }
+
+  unsigned char GetR() const { return r; }
+  unsigned char GetG() const { return g; }
+  unsigned char GetB() const { return b; }
 };
 
 #endif /* _COLOR_H_ */

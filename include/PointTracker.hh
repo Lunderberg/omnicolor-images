@@ -5,6 +5,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include <iostream>
+
 #include "Point.hh"
 
 class PointTracker{

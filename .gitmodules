@@ -1,0 +1,3 @@
+[submodule "lua-bindings"]
+	path = lua-bindings
+	url = https://github.com/Lunderberg/lua-bindings

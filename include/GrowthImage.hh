@@ -16,6 +16,10 @@
 #include "SmartEnum.hh"
 #include "UniquePalette.hh"
 
+namespace Lua{
+  class LuaState;
+}
+
 typedef std::function<int(int,int)> RandomInt;
 typedef std::function<std::vector<Color>(RandomInt,int)> PaletteGenerator;
 typedef std::function<std::vector<Point>(RandomInt,int,int)> InitialLocationGenerator;
@@ -26,6 +30,9 @@ typedef std::function<Color(RandomInt,std::vector<Color>,Point)> TargetColorGene
 class GrowthImage{
 public:
   GrowthImage(int width, int height, int seed);
+  GrowthImage(const char* luascript_filename);
+
+  ~GrowthImage();
 
   void SetPaletteGenerator(PaletteGenerator func);
   void SetInitialLocationGenerator(InitialLocationGenerator func);
@@ -61,6 +68,8 @@ private:
   Color ChooseColor(Point loc);
 
 private:
+  Lua::LuaState* state;
+
   PaletteGenerator palette_generator;
   InitialLocationGenerator initial_location_generator;
   LocationGenerator location_generator;

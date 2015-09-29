@@ -9,6 +9,8 @@
 #include <memory> // for std::shared_ptr
 #include <vector>
 
+#include <iostream>
+
 template<typename T>
 class LeafNode;
 
@@ -16,7 +18,7 @@ template<typename T>
 class InternalNode;
 
 template<typename T>
-double distance2(T a, T b){
+double distance2(const T& a, const T& b){
   double output = 0;
   for(int i=0; i<T::dimensions; i++){
     output += (a.get(i)-b.get(i)) * (a.get(i)-b.get(i));
@@ -36,6 +38,8 @@ public:
   };
 
   NodeBase() : parent(nullptr) {}
+
+  virtual ~NodeBase() {}
 
   // Gets the number of leaves that are direct or indirect children.
   virtual int GetNumLeaves() = 0;
@@ -101,6 +105,7 @@ public:
 private:
   virtual typename NodeBase<T>::SearchRes GetClosestNode(T query, double /* epsilon */){
     assert(leaves_unused > 0);
+    assert(values.size() == used.size());
 
     double best_distance2 = DBL_MAX;
     size_t best_index = 0;

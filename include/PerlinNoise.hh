@@ -16,7 +16,7 @@ public:
   void SetOctaves(int octaves){
     this->octaves = octaves;
   }
-  int GetOctoaves(){
+  int GetOctaves(){
     return octaves;
   }
 

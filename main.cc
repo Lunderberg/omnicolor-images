@@ -1,11 +1,8 @@
-#include <iostream>
-using std::cout;
-using std::cerr;
-using std::flush;
-using std::endl;
 #include <cstdio>
-#include <string>
+#include <iostream>
+#include <memory>
 #include <sstream>
+#include <string>
 
 #include <boost/gil/gil_all.hpp>
 #include <boost/program_options.hpp>
@@ -27,10 +24,10 @@ void MakeVideo(GrowthImage& g, std::string output, int iterations_per_frame){
       std::stringstream ss;
       ss << "temp/growth_" << picnum++ << ".png";
       g.Save(ss.str());
-      cout << "\rIteration: (" << i << "/" << g.GetWidth()*g.GetHeight() << ")" << flush;
+      std::cout << "\rIteration: (" << i << "/" << g.GetWidth()*g.GetHeight() << ")" << std::flush;
     }
   }
-  cout << endl;
+  std::cout << std::endl;
 
   for(int i=0; i<24; i++){
     std::stringstream ss;
@@ -71,10 +68,14 @@ int main(int argc, char** argv){
   int perlin_octaves;
   double perlin_grid_size;
 
+  std::string lua_scriptname;
+
   namespace po = boost::program_options;
   po::options_description desc("Options");
   desc.add_options()
-    ("help","Print help message")
+    ("input,i", po::value(&lua_scriptname),
+     "Filename of lua script.  Overrides all other input options if present.")
+    ("output,o", po::value(&output)->required(), "Output filename")
     ("width,w", po::value(&width)->default_value(256), "Width of the output image")
     ("height,h", po::value(&height)->default_value(128), "Height of the output image")
     ("epsilon,e", po::value(&epsilon)->default_value(5), "Epsilon (allowed error).  Zero = None allowed")
@@ -91,9 +92,9 @@ int main(int argc, char** argv){
      "Size in pixels of largest perlin noise grid")
     ("seed,s", po::value(&seed)->default_value(0),
      "Random seed (0 = seed with current time)")
-    ("output,o", po::value(&output)->required(), "Output filename")
     ("loc-iter", po::value(&preferred_location_iterations)->default_value(10),
      "How often to repeat to find a close value")
+    ("help","Print help message")
     ;
 
 
@@ -102,48 +103,54 @@ int main(int argc, char** argv){
     po::store(po::parse_command_line(argc,argv,desc),vm);
 
     if(vm.count("help")){
-      cout << "Growth Image Generator" << endl
-           << desc << endl;
+      std::cout << "Growth Image Generator" << std::endl
+                << desc << std::endl;
       return 0;
     }
 
     po::notify(vm);
   } catch (po::error& e){
-    cerr << "ERROR: " << e.what() << endl
-         << desc << endl;
+    std::cerr << "ERROR: " << e.what() << std::endl
+              << desc << std::endl;
     return 1;
   }
 
-  GrowthImage g(width,height,seed);
 
-  switch(location_choice){
-  case LocationChoice::Random:
-    g.SetLocationGenerator(generate_frontier_location);
-    break;
-  case LocationChoice::Sequential:
-    g.SetLocationGenerator(generate_sequential_location(width,height));
-    break;
-  case LocationChoice::Preferred:
-    g.SetLocationGenerator(generate_preferred_location(preferred_location_iterations));
-    break;
+  std::unique_ptr<GrowthImage> g;
+  if(vm.count("input")){
+    g = std::unique_ptr<GrowthImage>(new GrowthImage(lua_scriptname.c_str()));
+  } else {
+    g = std::unique_ptr<GrowthImage>(new GrowthImage(width,height,seed));
+
+    switch(location_choice){
+    case LocationChoice::Random:
+      g->SetLocationGenerator(generate_frontier_location);
+      break;
+    case LocationChoice::Sequential:
+      g->SetLocationGenerator(generate_sequential_location(width,height));
+      break;
+    case LocationChoice::Preferred:
+      g->SetLocationGenerator(generate_preferred_location(preferred_location_iterations));
+      break;
+    }
+
+    switch(preference_choice){
+    case PreferenceChoice::Location:
+      g->SetPreferenceGenerator(generate_location_preference());
+      break;
+    case PreferenceChoice::Perlin:
+      g->SetPreferenceGenerator(generate_perlin_preference(perlin_grid_size,
+                                                           perlin_octaves,
+                                                           g->GetRNG()));
+      break;
+    }
+
+    g->SetEpsilon(epsilon);
   }
-
-  switch(preference_choice){
-  case PreferenceChoice::Location:
-    g.SetPreferenceGenerator(generate_location_preference());
-    break;
-  case PreferenceChoice::Perlin:
-    g.SetPreferenceGenerator(generate_perlin_preference(perlin_grid_size,
-                                                        perlin_octaves,
-                                                        g.GetRNG()));
-    break;
-  }
-
-  g.SetEpsilon(epsilon);
 
   if(vm.count("video")){
-    MakeVideo(g, output, iterations_per_frame);
+    MakeVideo(*g, output, iterations_per_frame);
   } else {
-    MakeImage(g, output);
+    MakeImage(*g, output);
   }
 }

@@ -4,6 +4,8 @@
 #include <cfloat>
 #include <cmath>
 
+#include <iostream>
+
 std::vector<Color> generate_uniform_palette(RandomInt, int n_colors){
   assert(n_colors > 0);
   assert(n_colors < (1<<24));
