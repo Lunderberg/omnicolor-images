@@ -3,3 +3,6 @@
 *.o
 main
 *.png
+.build-target
+build
+lib
