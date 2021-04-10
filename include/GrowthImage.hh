@@ -8,7 +8,7 @@
 #include <unordered_set>
 #include <functional>
 
-#include <boost/gil/gil_all.hpp>
+#include "boost_gil_shim.hh"
 
 #include "PerlinNoise.hh"
 #include "Point.hh"

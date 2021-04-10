@@ -4,7 +4,7 @@
 #include <sstream>
 #include <string>
 
-#include <boost/gil/gil_all.hpp>
+#include "boost_gil_shim.hh"
 #include <boost/program_options.hpp>
 
 #include "CompiledAlgorithms.hh"
