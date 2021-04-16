@@ -1,4 +1,4 @@
-#include "GrowthImage.hh"
+#include "SavePNG.hh"
 
 #include <boost/version.hpp>
 
@@ -11,7 +11,8 @@
   #include <boost/gil/extension/io/png/old.hpp>
 #endif
 
-void GrowthImage::Save(const char* filepath){
+void SavePNG(const std::vector<Color> pixels, int width, int height,
+             const char *filepath) {
   boost::gil::rgb8_image_t image(width, height);
   auto view = image._view;
 
@@ -20,7 +21,7 @@ void GrowthImage::Save(const char* filepath){
 
   for(int j=0; j<height; j++) {
     for(int i=0; i<width; i++) {
-      auto color = pixels[get_index(i,j)];
+      auto color = pixels[i + j*width];
       view(i,j) = {color.r, color.g, color.b};
     }
   }
@@ -28,6 +29,7 @@ void GrowthImage::Save(const char* filepath){
   boost::gil::png_write_view(filepath,boost::gil::const_view(image));
 }
 
-void GrowthImage::Save(const std::string& filepath){
-  Save(filepath.c_str());
+void SavePNG(const std::vector<Color> pixels, int width, int height,
+             const std::string& filepath) {
+  SavePNG(pixels, width, height, filepath.c_str());
 }

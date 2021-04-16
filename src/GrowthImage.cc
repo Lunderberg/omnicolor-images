@@ -13,6 +13,7 @@
 
 #include "common.hh"
 #include "CompiledAlgorithms.hh"
+#include "SavePNG.hh"
 
 GrowthImage::GrowthImage(int width, int height, int seed)
   : state(NULL),
@@ -216,4 +217,12 @@ size_t GrowthImage::get_index(int i, int j) {
 
 size_t GrowthImage::get_index(Point p) {
   return get_index(p.i, p.j);
+}
+
+void GrowthImage::Save(const char *filepath) {
+  SavePNG(pixels, width, height, filepath);
+}
+
+void GrowthImage::Save(const std::string &filepath) {
+  Save(filepath.c_str());
 }
