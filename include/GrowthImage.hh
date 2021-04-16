@@ -13,6 +13,7 @@
 #include "PointTracker.hh"
 #include "SmartEnum.hh"
 #include "UniquePalette.hh"
+#include "KDTree.hh"
 
 namespace Lua{
   class LuaState;
@@ -49,8 +50,8 @@ public:
   bool Iterate();
   void IterateUntilDone();
 
-  void Save(const char* filepath);
   void Save(const std::string& filepath);
+  void SaveStats(const std::string& filepath);
 
   int GetWidth();
   int GetHeight();
@@ -63,7 +64,7 @@ private:
   void FirstIteration();
 
   Point ChooseLocation();
-  Color ChooseColor(Point loc);
+  KDTree_Result<Color> ChooseColor(Point loc);
 
 private:
   size_t get_index(int i, int j);
@@ -86,6 +87,7 @@ private:
   int width;
   int height;
   std::vector<Color> pixels;
+  std::vector<PerformanceStats> stats;
 
   std::mt19937 rng;
   RandomInt rand_int;

@@ -47,9 +47,14 @@ void MakeVideo(GrowthImage& g, std::string output, int iterations_per_frame){
   //err = system("rm -rf temp");
 }
 
-void MakeImage(GrowthImage& g, std::string output){
+void MakeImage(GrowthImage& g,
+               std::string output,
+               std::string output_stats){
   g.IterateUntilDone();
   g.Save(output);
+  if(!output_stats.empty()) {
+    g.SaveStats(output_stats);
+  }
 }
 
 SmartEnum(LocationChoice, Random, Preferred, Sequential);
@@ -63,6 +68,7 @@ int main(int argc, char** argv){
   PreferenceChoice preference_choice;
   int seed;
   std::string output;
+  std::string output_stats;
   int preferred_location_iterations;
   int perlin_octaves;
   double perlin_grid_size;
@@ -75,6 +81,7 @@ int main(int argc, char** argv){
     ("input,i", po::value(&lua_scriptname),
      "Filename of lua script.  Overrides all other input options if present.")
     ("output,o", po::value(&output)->required(), "Output filename")
+    ("output-stats", po::value(&output_stats), "Output stats image")
     ("width,w", po::value(&width)->default_value(256), "Width of the output image")
     ("height,h", po::value(&height)->default_value(128), "Height of the output image")
     ("epsilon,e", po::value(&epsilon)->default_value(5), "Epsilon (allowed error).  Zero = None allowed")
@@ -150,6 +157,6 @@ int main(int argc, char** argv){
   if(vm.count("video")){
     MakeVideo(*g, output, iterations_per_frame);
   } else {
-    MakeImage(*g, output);
+    MakeImage(*g, output, output_stats);
   }
 }

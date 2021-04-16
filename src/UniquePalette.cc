@@ -7,7 +7,6 @@
 #include <stdexcept>
 
 #include "common.hh"
-#include "KDTree.hh"
 
 UniquePalette::UniquePalette()
   : colors(nullptr) { }
@@ -26,15 +25,15 @@ int UniquePalette::ColorsRemaining(){
   }
 }
 
-Color UniquePalette::PopClosest(Color col, double epsilon){
+KDTree_Result<Color> UniquePalette::PopClosest(Color col, double epsilon){
   return colors->PopClosest(col, epsilon);
 }
 
-Color UniquePalette::PopBack(){
+KDTree_Result<Color> UniquePalette::PopBack(){
   return colors->PopClosest({0,0,0});
 }
 
-Color UniquePalette::PopRandom(std::mt19937& rng){
+KDTree_Result<Color> UniquePalette::PopRandom(std::mt19937& rng){
   return colors->PopClosest({
       (unsigned char)randint(rng,256),
       (unsigned char)randint(rng,256),

@@ -27,6 +27,7 @@ GrowthImage::GrowthImage(int width, int height, int seed)
     width(width),
     height(height),
     pixels(width*height, Color(0,0,0)),
+    stats(width*height),
     rng(seed ? seed : time(0)) {
 
   rand_int = [this](int a, int b){
@@ -75,7 +76,8 @@ GrowthImage::GrowthImage(const char* luascript_filename)
 
   width = state->CastGlobal<int>("width");
   height = state->CastGlobal<int>("height");
-  pixels = std::vector<Color>(width*height, Color(0,0,0));
+  pixels = std::vector<Color>(width*height);
+  stats = std::vector<PerformanceStats>(width*height);
 
   epsilon = state->CastGlobal<double>("epsilon");
   int seed = state->CastGlobal<int>("seed");
@@ -158,8 +160,10 @@ bool GrowthImage::Iterate(){
   }
 
   auto loc = ChooseLocation();
-  auto color = ChooseColor(loc);
-  pixels[get_index(loc)] = color;
+  auto res = ChooseColor(loc);
+  auto index = get_index(loc);
+  pixels[index] = res.res;
+  stats[index] = res.stats;
 
   point_tracker.Fill(
     loc,
@@ -188,7 +192,7 @@ Point GrowthImage::ChooseLocation(){
   return location_generator(rand_int, point_tracker);
 }
 
-Color GrowthImage::ChooseColor(Point loc){
+KDTree_Result<Color> GrowthImage::ChooseColor(Point loc){
   // Find the average surrounding color.
   std::vector<Color> neighbors;
   for(int di=-1; di<=1; di++){
@@ -219,10 +223,29 @@ size_t GrowthImage::get_index(Point p) {
   return get_index(p.i, p.j);
 }
 
-void GrowthImage::Save(const char *filepath) {
+void GrowthImage::Save(const std::string &filepath) {
   SavePNG(pixels, width, height, filepath);
 }
 
-void GrowthImage::Save(const std::string &filepath) {
-  Save(filepath.c_str());
+void GrowthImage::SaveStats(const std::string &filepath) {
+  PerformanceStats max;
+  for(auto& s : stats) {
+    max.nodes_checked = std::max(max.nodes_checked, s.nodes_checked);
+    max.leaf_nodes_checked = std::max(max.leaf_nodes_checked,
+                                      s.leaf_nodes_checked);
+    max.points_checked = std::max(max.points_checked, s.points_checked);
+  }
+
+
+  std::vector<Color> stat_pixels;
+  stat_pixels.reserve(width*height);
+
+  for(auto& s : stats) {
+    unsigned char r = 255 * std::log(s.nodes_checked) / std::log(max.nodes_checked);
+    unsigned char g = 255 * std::log(s.leaf_nodes_checked) / std::log(max.leaf_nodes_checked);
+    unsigned char b = 255 * std::log(s.points_checked) / std::log(max.points_checked);
+    stat_pixels.push_back({r,g,b});
+  }
+
+  SavePNG(stat_pixels, width, height, filepath);
 }

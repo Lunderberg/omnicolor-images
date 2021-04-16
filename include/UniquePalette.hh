@@ -8,17 +8,15 @@
 #include <memory>
 
 #include "Color.hh"
-
-template<typename T>
-class KDTree;
+#include "KDTree.hh"
 
 class UniquePalette{
 public:
   UniquePalette();
   ~UniquePalette();
-  Color PopClosest(Color col, double epsilon = 0);
-  Color PopBack();
-  Color PopRandom(std::mt19937& rng);
+  KDTree_Result<Color> PopClosest(Color col, double epsilon = 0);
+  KDTree_Result<Color> PopBack();
+  KDTree_Result<Color> PopRandom(std::mt19937& rng);
 
   void SetPalette(std::vector<Color> colors);
   int ColorsRemaining();

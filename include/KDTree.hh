@@ -11,6 +11,16 @@
 
 #include <iostream>
 
+struct PerformanceStats {
+  unsigned int nodes_checked;
+  unsigned int leaf_nodes_checked;
+  unsigned int points_checked;
+
+  PerformanceStats() :
+    nodes_checked(0), leaf_nodes_checked(0), points_checked(0)
+    { }
+};
+
 template<typename T>
 class LeafNode;
 
@@ -25,6 +35,12 @@ double distance2(const T& a, const T& b){
   }
   return output;
 }
+
+template<typename T>
+struct KDTree_Result {
+  T res;
+  PerformanceStats stats;
+};
 
 template<typename T>
 class NodeBase{
@@ -45,8 +61,9 @@ public:
   virtual int GetNumLeaves() = 0;
 
   // Pops the closest value from the tree.
-  T PopClosest(T query, double epsilon){
-    auto res = GetClosestNode(query, epsilon);
+  KDTree_Result<T> PopClosest(T query, double epsilon){
+    KDTree_Result<T> output;
+    auto res = GetClosestNode(query, epsilon, output.stats);
     NodeBase<T>* node_ptr = res.leaf;
     while(true){
       node_ptr->ReduceLeaves();
@@ -55,20 +72,24 @@ public:
         break;
       }
     }
-    return res.leaf->PopValue(res.index);
+    output.res = res.leaf->PopValue(res.index);
+    return output;
   }
 
   // Returns the closest value from the tree.
-  T GetClosest(T query, double epsilon){
-    auto res = GetClosestNode(query, epsilon);
-    return res.leaf->GetValue();
+  KDTree_Result<T> GetClosest(T query, double epsilon){
+    KDTree_Result<T> output;
+    auto res = GetClosestNode(query, epsilon, output.stats);
+    output.res = res.leaf->GetValue(res.index);
+    return output;
   }
   // Mark one leaf as having been finished.
   virtual void ReduceLeaves() = 0;
 
 private:
   // Returns a (distance,leafnode) pair of the closest value.
-  virtual SearchRes GetClosestNode(T query, double epsilon) = 0;
+  virtual SearchRes GetClosestNode(T query, double epsilon,
+                                   PerformanceStats& stats) = 0;
   void SetParent(NodeBase<T>* par){parent = par;}
   friend class InternalNode<T>;
 
@@ -103,9 +124,13 @@ public:
   }
 
 private:
-  virtual typename NodeBase<T>::SearchRes GetClosestNode(T query, double /* epsilon */){
+  virtual typename NodeBase<T>::SearchRes GetClosestNode(T query, double /* epsilon */, PerformanceStats& stats){
     assert(leaves_unused > 0);
     assert(values.size() == used.size());
+
+    stats.nodes_checked += 1;
+    stats.leaf_nodes_checked += 1;
+    stats.points_checked += leaves_unused;
 
     double best_distance2 = DBL_MAX;
     size_t best_index = 0;
@@ -144,26 +169,28 @@ public:
     num_leaves--;
   }
 private:
-  virtual typename NodeBase<T>::SearchRes GetClosestNode(T query, double epsilon){
+  virtual typename NodeBase<T>::SearchRes GetClosestNode(T query, double epsilon, PerformanceStats& stats){
     assert(num_leaves > 0);
+
+    stats.nodes_checked += 1;
 
     // If one of the branches is empty, this becomes really easy.
     if(left->GetNumLeaves() == 0){
-      return right->GetClosestNode(query, epsilon);
+      return right->GetClosestNode(query, epsilon, stats);
     } else if (right->GetNumLeaves() == 0){
-      return left->GetClosestNode(query, epsilon);
+      return left->GetClosestNode(query, epsilon, stats);
     }
 
     // Check on the side that is recommended by the median heuristic.
     double diff = query.get(dimension) - median;
-    auto res1 = (diff<0) ? left->GetClosestNode(query, epsilon) : right->GetClosestNode(query, epsilon);
+    auto res1 = (diff<0) ? left->GetClosestNode(query, epsilon, stats) : right->GetClosestNode(query, epsilon, stats);
     double allowed_diff = diff*(1+epsilon);
     if(allowed_diff * allowed_diff > res1.dist2 ){
       return res1;
     }
 
     // Couldn't bail out early, so check on the other side and compare.
-    auto res2 = (diff<0) ? right->GetClosestNode(query, epsilon) : left->GetClosestNode(query, epsilon);
+    auto res2 = (diff<0) ? right->GetClosestNode(query, epsilon, stats) : left->GetClosestNode(query, epsilon, stats);
     return (res1.dist2 < res2.dist2) ? res1 : res2;
   }
 
@@ -181,11 +208,11 @@ public:
     root = make_node(vec.data(), vec.size());
   }
 
-  T PopClosest(T query, double epsilon = 0){
+  KDTree_Result<T> PopClosest(T query, double epsilon = 0){
     return root->PopClosest(query, epsilon);
   }
 
-  T GetClosest(T query, double epsilon = 0){
+  KDTree_Result<T> GetClosest(T query, double epsilon = 0){
     return root->GetClosest(query, epsilon);
   }
 
