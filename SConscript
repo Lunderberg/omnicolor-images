@@ -1,5 +1,9 @@
-Import('env')
+Import("env")
 
-env.Append(LIBS=['png', 'boost_program_options'])
+env.Tool("compilation_db")
+env["COMPILATIONDB_USE_ABSPATH"] = True
+env.CompilationDatabase()
 
-env.CompileFolderDWIM('.', requires=['lua-bindings'])
+env.Append(LIBS=["png", "boost_program_options"])
+
+env.CompileFolderDWIM(".", requires=["lua-bindings"])

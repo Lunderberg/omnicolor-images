@@ -23,7 +23,9 @@ GrowthImage::GrowthImage(int width, int height, int seed)
     target_color_generator(generate_average_color),
     point_tracker(width, height),
     epsilon(0),
-    image(width,height), view(boost::gil::view(image)),
+    width(width),
+    height(height),
+    pixels(width*height, Color(0,0,0)),
     rng(seed ? seed : time(0)) {
 
   rand_int = [this](int a, int b){
@@ -35,7 +37,7 @@ GrowthImage::GrowthImage(int width, int height, int seed)
 }
 
 GrowthImage::GrowthImage(const char* luascript_filename)
-  : point_tracker(0,0) , image(1, 1), view(boost::gil::view(image)) {
+  : point_tracker(0,0) {
 
   state = new Lua::LuaState;
   state->LoadSafeLibs();
@@ -70,14 +72,14 @@ GrowthImage::GrowthImage(const char* luascript_filename)
   preference_generator = state->CastGlobal<PreferenceGenerator>("location_preference");
   target_color_generator = state->CastGlobal<TargetColorGenerator>("target_color");
 
-  int width = state->CastGlobal<int>("width");
-  int height = state->CastGlobal<int>("height");
+  width = state->CastGlobal<int>("width");
+  height = state->CastGlobal<int>("height");
+  pixels = std::vector<Color>(width*height, Color(0,0,0));
+
   epsilon = state->CastGlobal<double>("epsilon");
   int seed = state->CastGlobal<int>("seed");
 
   point_tracker = PointTracker(width, height);
-  image = boost::gil::rgb8_image_t(width, height);
-  view = boost::gil::rgb8_image_t::view_t(boost::gil::view(image));
   rng = std::mt19937(seed ? seed : time(0));
 
   rand_int = [this](int a, int b){
@@ -100,11 +102,11 @@ void GrowthImage::Seed(int seed){
 }
 
 int GrowthImage::GetWidth(){
-  return image.width();
+  return width;
 }
 
 int GrowthImage::GetHeight(){
-  return image.height();
+  return height;
 }
 
 void GrowthImage::SetPaletteGenerator(PaletteGenerator func){
@@ -140,7 +142,7 @@ void GrowthImage::Reset(){
 }
 
 void GrowthImage::FirstIteration(){
-  auto points = initial_location_generator(rand_int, image.width(), image.height());
+  auto points = initial_location_generator(rand_int, GetWidth(), GetHeight());
   for(auto point : points){
     point_tracker.AddToFrontier(point);
   }
@@ -156,11 +158,13 @@ bool GrowthImage::Iterate(){
 
   auto loc = ChooseLocation();
   auto color = ChooseColor(loc);
-  view(loc.i,loc.j) = {color.r, color.g, color.b};
+  pixels[get_index(loc)] = color;
 
-  point_tracker.Fill(loc,
-                     std::bind(std::ref(preference_generator),
-                               rand_int, std::placeholders::_1, std::cref(point_tracker)));
+  point_tracker.Fill(
+    loc,
+    [&](Point pos) {
+      return preference_generator(rand_int, pos, point_tracker);
+    });
 
   return point_tracker.FrontierSize();
 }
@@ -171,7 +175,7 @@ void GrowthImage::IterateUntilDone(){
     if(body_size % 100000 == 0){
       std::cout << "\r                                                   \r"
                 << "Body: " << body_size << "\tFrontier: " << point_tracker.FrontierSize()
-                << "\tUnexplored: " << image.height()*image.width() - body_size - point_tracker.FrontierSize()
+                << "\tUnexplored: " << pixels.size() - body_size - point_tracker.FrontierSize()
                 << std::flush;
     }
     body_size++;
@@ -189,17 +193,27 @@ Color GrowthImage::ChooseColor(Point loc){
   for(int di=-1; di<=1; di++){
     for(int dj=-1; dj<=1; dj++){
       Point p(loc.i+di,loc.j+dj);
-      if(p.i>=0 && p.i<image.width() &&
-         p.j>=0 && p.j<image.height() &&
+      auto index = get_index(p);
+      if((index!=size_t(-1)) &&
          point_tracker.IsFilled(p.i,p.j)){
-        neighbors.push_back({
-            view(p.i,p.j)[0],
-              view(p.i,p.j)[1],
-              view(p.i,p.j)[2]});
+        neighbors.push_back(pixels[index]);
       }
     }
   }
 
   Color target = target_color_generator(rand_int, std::move(neighbors), loc);
   return palette.PopClosest(target, epsilon);
+}
+
+size_t GrowthImage::get_index(int i, int j) {
+  if ( i>=0 && i<GetWidth() &&
+       j>=0 && j<GetHeight() ) {
+    return j*width + i;
+  } else {
+    return -1;
+  }
+}
+
+size_t GrowthImage::get_index(Point p) {
+  return get_index(p.i, p.j);
 }

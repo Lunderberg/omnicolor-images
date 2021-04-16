@@ -8,8 +8,6 @@
 #include <unordered_set>
 #include <functional>
 
-#include "boost_gil_shim.hh"
-
 #include "PerlinNoise.hh"
 #include "Point.hh"
 #include "PointTracker.hh"
@@ -68,6 +66,9 @@ private:
   Color ChooseColor(Point loc);
 
 private:
+  size_t get_index(int i, int j);
+  size_t get_index(Point p);
+
   Lua::LuaState* state;
 
   PaletteGenerator palette_generator;
@@ -82,8 +83,9 @@ private:
 
   UniquePalette palette;
 
-  boost::gil::rgb8_image_t image;
-  boost::gil::rgb8_image_t::view_t view;
+  int width;
+  int height;
+  std::vector<Color> pixels;
 
   std::mt19937 rng;
   RandomInt rand_int;
