@@ -25,7 +25,11 @@ std::vector<Color> generate_uniform_palette(RandomInt, int n_colors){
     val /= dim_size;
     double b = val;
 
-    colors.push_back({r*255,g*255,b*255});
+    colors.push_back({
+        (unsigned char)(r*255),
+        (unsigned char)(g*255),
+        (unsigned char)(b*255)
+      });
   }
 
   return colors;
@@ -92,6 +96,10 @@ Color generate_average_color(RandomInt rand, std::vector<Color> neighbors, Point
     }
     return output;
   } else {
-    return {rand(0,255), rand(0,255), rand(0,255)};
+    return {
+      (unsigned char)rand(0,255),
+      (unsigned char)rand(0,255),
+      (unsigned char)rand(0,255)
+    };
   }
 }
